@@ -4,14 +4,24 @@ local function linewise(regtype)
   return regtype == "V"
 end
 
-local function put_type(regtype)
-  if regtype == "V" then
-    return "l"
+--- Insert at cursor and return to insert mode (avoids nvim_put type issues).
+---@param lines string[]
+---@param regtype string
+local function paste_insert_mode(lines, regtype)
+  local buf = vim.api.nvim_get_current_buf()
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+
+  if linewise(regtype) then
+    vim.api.nvim_buf_set_text(buf, row - 1, 0, row - 1, 0, lines)
+    vim.api.nvim_win_set_cursor(0, { row + #lines - 1, 0 })
+  else
+    vim.api.nvim_buf_set_text(buf, row - 1, col, row - 1, col, lines)
+    local last_row = row + #lines - 2
+    local last_col = col + #(lines[#lines] or "")
+    vim.api.nvim_win_set_cursor(0, { last_row + 1, last_col })
   end
-  if regtype == "\022" or (type(regtype) == "string" and regtype:find("^%d")) then
-    return "b"
-  end
-  return "c"
+
+  vim.cmd("startinsert")
 end
 
 local function mark_buf(pos, buf)
@@ -188,8 +198,7 @@ function M.apply(entry, opener_mode, visual_marks, opener_win)
 
   local function do_paste()
     if opener_mode == "i" then
-      vim.fn.setreg('"', lines, regtype)
-      vim.api.nvim_put(lines, put_type(regtype), true, true)
+      paste_insert_mode(lines, regtype)
       return
     end
 

@@ -68,7 +68,7 @@ describe("clipring.paste", function()
   end)
 
   it("inserts in insert mode without visual marks", function()
-    vim.api.nvim_win_set_cursor(win, { 1, 4 })
+    vim.api.nvim_win_set_cursor(win, { 1, 5 }) -- 0-indexed: before space, after "hello"
     vim.cmd("startinsert")
     paste.apply(h.entry({ "X" }, "v"), "i", nil, win)
     vim.cmd("stopinsert")
