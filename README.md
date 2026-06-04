@@ -11,7 +11,7 @@ Minimal yank history for Neovim — a lightweight Lua plugin inspired by YankRin
 
 - Automatic capture of every yank
 - Floating popup history (`:ClipRing`) with a multiline preview pane
-- Navigate with `j` / `k`, reorder with `<C-j>` / `<C-k>`, paste with `<Enter>`, delete with `dd`
+- Navigate with `j` / `k`, reorder with `<C-j>` / `<C-k>`, paste with `<Enter>`, copy to the system clipboard with `y`, delete with `dd`
 - Works from Normal, Insert, and Visual modes
 - Optional JSON persistence between sessions
 - Configurable history size and keymaps
@@ -141,13 +141,13 @@ Coverage today:
 
 - **ring** — add, dedupe, max size, remove, reorder
 - **paste** — visual capture (`v` / `'<`), charwise replace vs append, insert-mode paste at saved cursor
-- **ui** — picker from insert, navigation, reorder keys, which-key / `<C-w>` behavior
+- **ui** — picker from insert, navigation, reorder keys, multiline preview, clipboard copy, which-key / `<C-w>` behavior
 - **yank** — `TextYankPost` capture
 - **setup** — `open_mapping` registration
 
 ## Roadmap
 
-Possible future work: Telescope picker, system clipboard, preview pane, bulk delete.
+Possible future work: Telescope picker, bulk delete.
 
 ## License
 
