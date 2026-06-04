@@ -12,14 +12,18 @@ function M.setup(opts)
 
   local open_map = config.get().open_mapping
   if open_map and open_map ~= "" then
-    vim.keymap.set({ "n", "i", "v", "x" }, open_map, function()
+    vim.keymap.set("i", open_map, function()
+      M.open({ from_insert = true })
+    end, { desc = "Open ClipRing history", silent = true })
+    vim.keymap.set({ "n", "v", "x" }, open_map, function()
       M.open()
     end, { desc = "Open ClipRing history", silent = true })
   end
 end
 
-function M.open()
-  ui.open()
+---@param opts table|nil passed to ui.open (e.g. { from_insert = true })
+function M.open(opts)
+  ui.open(opts)
 end
 
 function M.close()

@@ -9,6 +9,7 @@ local state = {
   buf = nil,
   win = nil,
   opener_win = nil,
+  opener_cursor = nil,
   opener_mode = "n",
   visual_marks = nil,
   index = 1,
@@ -67,20 +68,47 @@ local function refresh_buffer()
   end
 end
 
-local function close()
+local NAV_MODES = { "n", "i", "v", "x", "s" }
+
+--- Insert mode uses getcurpos() (1-indexed col); other modes use win cursor (0-indexed col).
+local function capture_opener_cursor(win, mode)
+  if mode == "i" then
+    local c = vim.fn.getcurpos()
+    return { c[2], c[3] - 1 }
+  end
+  return vim.api.nvim_win_get_cursor(win)
+end
+
+local function close(restore_insert)
+  local opener_mode = state.opener_mode
+  local opener_win = state.opener_win
+
   if state.win and vim.api.nvim_win_is_valid(state.win) then
     vim.api.nvim_win_close(state.win, true)
   end
   if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
     vim.api.nvim_buf_delete(state.buf, { force = true })
   end
-  if state.opener_win and vim.api.nvim_win_is_valid(state.opener_win) then
-    vim.api.nvim_set_current_win(state.opener_win)
+  if opener_win and vim.api.nvim_win_is_valid(opener_win) then
+    vim.api.nvim_set_current_win(opener_win)
   end
   state.buf = nil
   state.win = nil
   state.opener_win = nil
+  state.opener_cursor = nil
   state.visual_marks = nil
+
+  if restore_insert ~= false and opener_mode == "i" then
+    vim.cmd("startinsert")
+  end
+end
+
+local function focus_float_normal()
+  if not state.win or not vim.api.nvim_win_is_valid(state.win) then
+    return
+  end
+  vim.api.nvim_set_current_win(state.win)
+  vim.cmd("stopinsert")
 end
 
 local function select_current()
@@ -99,8 +127,13 @@ local function select_current()
   local mode = state.opener_mode
   local marks = state.visual_marks
   local opener_win = state.opener_win
-  close()
-  paste.apply(entry, mode, marks, opener_win)
+  local opener_cursor = state.opener_cursor
+  close(false)
+  if opener_win and opener_cursor and vim.api.nvim_win_is_valid(opener_win) then
+    vim.api.nvim_set_current_win(opener_win)
+    vim.api.nvim_win_set_cursor(opener_win, opener_cursor)
+  end
+  paste.apply(entry, mode, marks, opener_win, opener_cursor)
 end
 
 local function delete_current()
@@ -134,7 +167,7 @@ local function attach_keymaps()
   local opts = { buffer = state.buf, silent = true, nowait = true }
 
   local function map(lhs, rhs)
-    vim.keymap.set("n", lhs, rhs, opts)
+    vim.keymap.set(NAV_MODES, lhs, rhs, opts)
   end
 
   map("j", function()
@@ -163,15 +196,24 @@ local function attach_keymaps()
   end)
 end
 
-function M.open()
+---@param opts table|nil
+---@field from_insert boolean|nil set when the open keymap runs in Insert mode
+function M.open(opts)
+  opts = opts or {}
+
   if state.win and vim.api.nvim_win_is_valid(state.win) then
     refresh_buffer()
-    vim.api.nvim_set_current_win(state.win)
+    focus_float_normal()
     return
   end
 
   state.opener_win = vim.api.nvim_get_current_win()
-  state.opener_mode = vim.fn.mode()
+  if opts.from_insert then
+    state.opener_mode = "i"
+  else
+    state.opener_mode = vim.api.nvim_get_mode().mode
+  end
+  state.opener_cursor = capture_opener_cursor(state.opener_win, state.opener_mode)
   state.visual_marks = paste.capture_visual_marks(state.opener_win, state.opener_mode)
   state.index = 1
 
@@ -201,6 +243,7 @@ function M.open()
 
   attach_keymaps()
   refresh_buffer()
+  focus_float_normal()
 
   if ring.count() > 0 then
     vim.api.nvim_win_set_cursor(state.win, { state.index, 0 })
@@ -209,6 +252,14 @@ end
 
 function M.close()
   close()
+end
+
+--- Test-only accessor for picker state.
+function M._state()
+  return {
+    opener_mode = state.opener_mode,
+    opener_cursor = state.opener_cursor,
+  }
 end
 
 return M
