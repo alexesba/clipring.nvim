@@ -101,6 +101,29 @@ describe("clipring.paste", function()
     assert.are_not.equal("helloXworld", h.buf_text(buf))
   end)
 
+  it("insert mode paste at end of file when cursor is on last character", function()
+    vim.api.nvim_buf_set_lines(buf, 0, -1, true, { "line one", "final" })
+    local curpos = { 0, 2, 6, 0 }
+    paste.apply(h.entry({ "!" }, "v"), "i", nil, win, curpos)
+    vim.cmd("stopinsert")
+    assert.are.equal("line one\nfinal!", h.buf_text(buf))
+  end)
+
+  it("insert mode linewise paste appends after last line at EOL", function()
+    vim.api.nvim_buf_set_lines(buf, 0, -1, true, { "hello" })
+    local curpos = { 0, 1, 6, 0 }
+    paste.apply(h.entry({ "world" }, "V"), "i", nil, win, curpos)
+    vim.cmd("stopinsert")
+    assert.are.equal("hello\nworld", h.buf_text(buf))
+  end)
+
+  it("normal mode paste at EOF uses saved getcurpos", function()
+    vim.api.nvim_buf_set_lines(buf, 0, -1, true, { "done" })
+    local curpos = { 0, 1, 5, 0 }
+    paste.apply(h.entry({ "!" }, "v"), "n", nil, win, curpos)
+    assert.are.equal("done!", h.buf_text(buf))
+  end)
+
   it("insert mode paste preserves trailing space at end of line", function()
     vim.api.nvim_buf_set_lines(buf, 0, -1, true, { "hola mundo " })
     -- Cursor after the trailing space (1-indexed col 12 on an 11-byte line).

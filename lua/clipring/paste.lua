@@ -8,10 +8,15 @@ local function is_getcurpos(cursor)
   return type(cursor) == "table" and cursor[2] ~= nil and cursor[3] ~= nil and cursor[4] ~= nil
 end
 
---- 0-indexed byte column for nvim_buf_set_text from getcurpos() in Insert mode.
-local function byte_col_from_curpos(curpos)
+--- 0-indexed byte column for nvim_buf_set_text from getcurpos().
+local function byte_col_from_curpos(curpos, buf)
+  buf = buf or 0
   local lnum, col = curpos[2], curpos[3]
-  local line = vim.api.nvim_buf_get_lines(0, lnum - 1, lnum, false)[1] or ""
+  local line = vim.api.nvim_buf_get_lines(buf, lnum - 1, lnum, false)[1] or ""
+  local charlen = vim.fn.strchars(line)
+  if col >= charlen then
+    return #line
+  end
   local byte = vim.str_byteindex(line, col - 1, true)
   if byte < 0 then
     return #line
@@ -19,35 +24,66 @@ local function byte_col_from_curpos(curpos)
   return byte
 end
 
---- Insert at cursor in Insert mode.
+local function at_end_of_line(buf, row, cursor, win_col)
+  local line = vim.api.nvim_buf_get_lines(buf, row, row + 1, false)[1] or ""
+  if cursor and is_getcurpos(cursor) then
+    return byte_col_from_curpos(cursor, buf) >= #line
+  end
+  if win_col ~= nil then
+    return win_col >= #line
+  end
+  return false
+end
+
+--- Paste at saved getcurpos() or win cursor. Used for Insert and Normal (non-visual).
 ---@param lines string[]
 ---@param regtype string
 ---@param cursor number[]|nil getcurpos() or {row, col} win cursor (0-indexed col)
-local function paste_insert_mode(lines, regtype, cursor)
+---@param enter_insert boolean
+local function paste_at_curpos(lines, regtype, cursor, enter_insert)
   local buf = vim.api.nvim_get_current_buf()
   local row, col
 
   if cursor and is_getcurpos(cursor) then
     row = cursor[2] - 1
-    col = byte_col_from_curpos(cursor)
+    col = byte_col_from_curpos(cursor, buf)
   else
     if cursor then
       vim.api.nvim_win_set_cursor(0, cursor)
     end
-    vim.cmd("startinsert")
-    row, col = unpack(vim.api.nvim_win_get_cursor(0))
-    row = row - 1
+    if enter_insert then
+      vim.cmd("startinsert")
+    end
+    local win_row, win_col = unpack(vim.api.nvim_win_get_cursor(0))
+    row = win_row - 1
+    col = win_col
   end
 
   if linewise(regtype) then
-    vim.api.nvim_buf_set_text(buf, row, 0, row, 0, lines)
-    vim.api.nvim_win_set_cursor(0, { row + #lines, 0 })
+    local insert_row = row
+    if at_end_of_line(buf, row, cursor, col) then
+      insert_row = row + 1
+    end
+    local line_count = vim.api.nvim_buf_line_count(buf)
+    if insert_row >= line_count then
+      vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, lines)
+    else
+      vim.api.nvim_buf_set_text(buf, insert_row, 0, insert_row, 0, lines)
+    end
+    vim.api.nvim_win_set_cursor(0, { insert_row + #lines, 0 })
   else
     vim.api.nvim_buf_set_text(buf, row, col, row, col, lines)
-    vim.api.nvim_win_set_cursor(0, { row + 1, col + #(lines[#lines] or "") })
+    local last = lines[#lines] or ""
+    vim.api.nvim_win_set_cursor(0, { row + 1, col + vim.fn.strlen(last) })
   end
 
-  vim.cmd("startinsert")
+  if enter_insert then
+    vim.cmd("startinsert")
+  end
+end
+
+local function paste_insert_mode(lines, regtype, cursor)
+  paste_at_curpos(lines, regtype, cursor, true)
 end
 
 local function mark_buf(pos, buf)
@@ -239,6 +275,11 @@ function M.apply(entry, opener_mode, visual_marks, opener_win, opener_cursor)
         return
       end
       vim.notify("ClipRing: could not replace the selection", vim.log.levels.WARN)
+    end
+
+    if opener_cursor and is_getcurpos(opener_cursor) then
+      paste_at_curpos(lines, regtype, opener_cursor, false)
+      return
     end
 
     vim.fn.setreg('"', lines, regtype)
