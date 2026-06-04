@@ -44,7 +44,8 @@ use({ "your-user/clipring.nvim", config = function() require("clipring").setup()
 
 | Key / command | Action |
 |---------------|--------|
-| `:ClipRing` | Open history popup |
+| `:ClipRing` | Open history popup (always available) |
+| your `open_mapping` | Open popup when set in `setup()` (e.g. `<leader>y`) |
 | `j` / `k` | Move selection |
 | `<C-j>` / `<C-k>` | Move selected entry down / up in history order |
 | `<Enter>` | Paste selected entry and close |
@@ -63,11 +64,13 @@ require("clipring").setup({
   preview_length = 80,       -- chars shown per line in popup
   deduplicate = true,        -- move duplicates to top instead of re-adding
   min_length = 1,            -- ignore yanks shorter than this (chars)
-  open_mapping = nil,        -- e.g. "<leader>y" to open from any mode
+  open_mapping = "<leader>y",  -- string, list of strings, or false (nil = no keymap)
   reorder_down_mapping = "<C-j>", -- picker: move entry down in history (false to disable)
   reorder_up_mapping = "<C-k>",   -- picker: move entry up in history (false to disable)
 })
 ```
+
+**`open_mapping`** — set a string (e.g. `"<leader>y"`) or multiple (`{ "<leader>y", "<M-y>" }`) to open ClipRing from Normal, Visual, and Insert. Leave unset or `nil` to use only `:ClipRing`. Use `false` to clear a keymap after a previous `setup()`.
 
 Omit `reorder_down_mapping` / `reorder_up_mapping` to keep the defaults above. Set either to `false` to turn off that binding.
 
