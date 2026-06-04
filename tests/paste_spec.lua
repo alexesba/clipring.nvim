@@ -88,4 +88,14 @@ describe("clipring.paste", function()
     assert.are_not.equal("helloXworld", h.buf_text(buf))
   end)
 
+  it("insert mode paste preserves trailing space at end of line", function()
+    vim.api.nvim_buf_set_lines(buf, 0, -1, true, { "hola mundo " })
+    -- Cursor after the trailing space (1-indexed col 12 on an 11-byte line).
+    local curpos = { 0, 1, 12, 0 }
+    paste.apply(h.entry({ "foo" }, "v"), "i", nil, win, curpos)
+    vim.cmd("stopinsert")
+    assert.are.equal("hola mundo foo", h.buf_text(buf))
+    assert.are_not.equal("hola mundofoo", h.buf_text(buf))
+  end)
+
 end)

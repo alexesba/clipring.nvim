@@ -4,27 +4,47 @@ local function linewise(regtype)
   return regtype == "V"
 end
 
+local function is_getcurpos(cursor)
+  return type(cursor) == "table" and cursor[2] ~= nil and cursor[3] ~= nil and cursor[4] ~= nil
+end
+
+--- 0-indexed byte column for nvim_buf_set_text from getcurpos() in Insert mode.
+local function byte_col_from_curpos(curpos)
+  local lnum, col = curpos[2], curpos[3]
+  local line = vim.api.nvim_buf_get_lines(0, lnum - 1, lnum, false)[1] or ""
+  local byte = vim.str_byteindex(line, col - 1, true)
+  if byte < 0 then
+    return #line
+  end
+  return byte
+end
+
 --- Insert at cursor in Insert mode.
 ---@param lines string[]
 ---@param regtype string
----@param cursor number[]|nil {row, col} saved when ClipRing opened
+---@param cursor number[]|nil getcurpos() or {row, col} win cursor (0-indexed col)
 local function paste_insert_mode(lines, regtype, cursor)
-  if cursor then
-    vim.api.nvim_win_set_cursor(0, cursor)
-  end
-  vim.cmd("startinsert")
-
   local buf = vim.api.nvim_get_current_buf()
-  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  local row, col
+
+  if cursor and is_getcurpos(cursor) then
+    row = cursor[2] - 1
+    col = byte_col_from_curpos(cursor)
+  else
+    if cursor then
+      vim.api.nvim_win_set_cursor(0, cursor)
+    end
+    vim.cmd("startinsert")
+    row, col = unpack(vim.api.nvim_win_get_cursor(0))
+    row = row - 1
+  end
 
   if linewise(regtype) then
-    vim.api.nvim_buf_set_text(buf, row - 1, 0, row - 1, 0, lines)
-    vim.api.nvim_win_set_cursor(0, { row + #lines - 1, 0 })
+    vim.api.nvim_buf_set_text(buf, row, 0, row, 0, lines)
+    vim.api.nvim_win_set_cursor(0, { row + #lines, 0 })
   else
-    vim.api.nvim_buf_set_text(buf, row - 1, col, row - 1, col, lines)
-    local last_row = row + #lines - 1
-    local last_col = col + #(lines[#lines] or "")
-    vim.api.nvim_win_set_cursor(0, { last_row, last_col })
+    vim.api.nvim_buf_set_text(buf, row, col, row, col, lines)
+    vim.api.nvim_win_set_cursor(0, { row + 1, col + #(lines[#lines] or "") })
   end
 
   vim.cmd("startinsert")

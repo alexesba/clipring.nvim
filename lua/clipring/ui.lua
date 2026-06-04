@@ -70,11 +70,10 @@ end
 
 local NAV_MODES = { "n", "i", "v", "x", "s" }
 
---- Insert mode uses getcurpos() (1-indexed col); other modes use win cursor (0-indexed col).
+--- Insert mode: full getcurpos() (supports cursor past end-of-line). Else win {row, col}.
 local function capture_opener_cursor(win, mode)
   if mode == "i" then
-    local c = vim.fn.getcurpos()
-    return { c[2], c[3] - 1 }
+    return vim.fn.getcurpos()
   end
   return vim.api.nvim_win_get_cursor(win)
 end
@@ -129,9 +128,12 @@ local function select_current()
   local opener_win = state.opener_win
   local opener_cursor = state.opener_cursor
   close(false)
-  if opener_win and opener_cursor and vim.api.nvim_win_is_valid(opener_win) then
+  if opener_win and vim.api.nvim_win_is_valid(opener_win) then
     vim.api.nvim_set_current_win(opener_win)
-    vim.api.nvim_win_set_cursor(opener_win, opener_cursor)
+    -- Win cursor only; insert uses getcurpos restored inside paste_insert_mode.
+    if opener_cursor and #opener_cursor < 4 then
+      vim.api.nvim_win_set_cursor(opener_win, opener_cursor)
+    end
   end
   paste.apply(entry, mode, marks, opener_win, opener_cursor)
 end
