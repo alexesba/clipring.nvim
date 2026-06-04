@@ -190,49 +190,55 @@ local function picker_mapping(key, fallback)
 end
 
 local function attach_keymaps()
-  local map_opts = { buffer = state.buf, silent = true, nowait = true }
+  -- noremap: override global maps (e.g. <C-j> -> :move) on this read-only buffer.
+  local map_opts = {
+    buffer = state.buf,
+    silent = true,
+    nowait = true,
+    noremap = true,
+  }
 
-  local function map(lhs, rhs)
-    vim.keymap.set(NAV_MODES, lhs, rhs, map_opts)
+  local function map(lhs, rhs, desc)
+    vim.keymap.set(NAV_MODES, lhs, rhs, vim.tbl_extend("force", map_opts, { desc = desc }))
   end
 
   map("j", function()
     move_selection(1)
-  end)
+  end, "ClipRing: next entry")
   map("k", function()
     move_selection(-1)
-  end)
+  end, "ClipRing: previous entry")
   map("<Down>", function()
     move_selection(1)
-  end)
+  end, "ClipRing: next entry")
   map("<Up>", function()
     move_selection(-1)
-  end)
+  end, "ClipRing: previous entry")
 
   local reorder_down = picker_mapping("reorder_down_mapping", "<C-j>")
   if reorder_down then
     map(reorder_down, function()
       reorder_current(1)
-    end)
+    end, "ClipRing: move entry down")
   end
   local reorder_up = picker_mapping("reorder_up_mapping", "<C-k>")
   if reorder_up then
     map(reorder_up, function()
       reorder_current(-1)
-    end)
+    end, "ClipRing: move entry up")
   end
   map("<CR>", function()
     select_current()
-  end)
+  end, "ClipRing: paste entry")
   map("dd", function()
     delete_current()
-  end)
+  end, "ClipRing: delete entry")
   map("q", function()
     close()
-  end)
+  end, "ClipRing: close")
   map("<Esc>", function()
     close()
-  end)
+  end, "ClipRing: close")
 end
 
 ---@param opts table|nil

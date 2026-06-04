@@ -74,6 +74,8 @@ require("clipring").setup({
 
 Omit `reorder_down_mapping` / `reorder_up_mapping` to keep the defaults above. Set either to `false` to turn off that binding.
 
+If `<C-j>` / `<C-k>` still move lines in the picker (conflict with a global `:move` map), set different keys, e.g. `reorder_down_mapping = "<A-j>"`.
+
 ## Tests
 
 Specs use [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) and run inside headless Neovim:
