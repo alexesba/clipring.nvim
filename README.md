@@ -66,6 +66,26 @@ require("clipring").setup({
 })
 ```
 
+## Tests
+
+Specs use [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) and run inside headless Neovim:
+
+```bash
+./scripts/run_tests.sh
+```
+
+Set `PLENARY_DIR` if plenary is already on disk:
+
+```bash
+PLENARY_DIR=~/.local/share/nvim/lazy/plenary.nvim ./scripts/run_tests.sh
+```
+
+Coverage today:
+
+- **ring** — add, dedupe, max size, remove
+- **paste** — visual capture (`v` / `'<`), charwise replace vs append, insert mode
+- **yank** — `TextYankPost` capture
+
 ## Roadmap
 
 Possible future work: Telescope picker, system clipboard, preview pane, bulk delete.
