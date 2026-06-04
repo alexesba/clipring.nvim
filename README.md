@@ -46,11 +46,13 @@ use({ "your-user/clipring.nvim", config = function() require("clipring").setup()
 |---------------|--------|
 | `:ClipRing` | Open history popup (always available) |
 | your `open_mapping` | Open popup when set in `setup()` (e.g. `<leader>y`) |
-| `j` / `k` | Move selection |
+| `j` / `k` (also `J` / `K`) | Move selection |
 | `<C-j>` / `<C-k>` | Move selected entry down / up in history order |
 | `<Enter>` | Paste selected entry and close |
 | `dd` | Remove selected entry from history |
 | `q` / `<Esc>` | Close without pasting |
+
+While the picker is open, `<C-w>` does not switch windows (close the picker first, like Telescope).
 
 In **Insert** mode, `<Enter>` pastes at the cursor without leaving Insert. In **Visual** mode, the selected text is replaced by the chosen entry.
 

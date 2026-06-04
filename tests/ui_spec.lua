@@ -36,6 +36,38 @@ describe("clipring.ui", function()
     return clip_buf
   end
 
+  it("blocks Ctrl-w window switch while picker is focused", function()
+    local buf2 = vim.api.nvim_create_buf(true, true)
+    local win2 = vim.api.nvim_open_win(buf2, false, {
+      relative = "editor",
+      width = 20,
+      height = 5,
+      row = 0,
+      col = 0,
+      style = "minimal",
+    })
+    ui.open()
+    local clip_win = vim.fn.bufwinid(h.find_clipring_buf())
+    vim.api.nvim_set_current_win(clip_win)
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-w>w", true, false, true), "x", true)
+    assert.are.equal(clip_win, vim.api.nvim_get_current_win())
+    if vim.api.nvim_win_is_valid(win2) then
+      vim.api.nvim_win_close(win2, true)
+    end
+    if vim.api.nvim_buf_is_valid(buf2) then
+      vim.api.nvim_buf_delete(buf2, { force = true })
+    end
+  end)
+
+  it("maps K to move up without invoking man on the preview word", function()
+    ui.open()
+    local clip_buf = h.find_clipring_buf()
+    feed_clipring("j")
+    assert.are.equal(2, h.clipring_selected_line(clip_buf))
+    feed_clipring("K")
+    assert.are.equal(1, h.clipring_selected_line(clip_buf))
+  end)
+
   it("maps j to move down in the picker while insert mappings exist", function()
     ui.open({ from_insert = true })
     local clip_buf = h.find_clipring_buf()

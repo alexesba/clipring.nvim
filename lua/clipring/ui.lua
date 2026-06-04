@@ -205,7 +205,13 @@ local function attach_keymaps()
   map("j", function()
     move_selection(1)
   end, "ClipRing: next entry")
+  map("J", function()
+    move_selection(1)
+  end, "ClipRing: next entry")
   map("k", function()
+    move_selection(-1)
+  end, "ClipRing: previous entry")
+  map("K", function()
     move_selection(-1)
   end, "ClipRing: previous entry")
   map("<Down>", function()
@@ -239,6 +245,10 @@ local function attach_keymaps()
   map("<Esc>", function()
     close()
   end, "ClipRing: close")
+
+  -- Keep focus in the picker (Telescope-style); close with q/Esc before <C-w>.
+  map("<C-w>", "<Nop>", "ClipRing: disable window switch")
+  map("<C-W>", "<Nop>", "ClipRing: disable window switch")
 end
 
 ---@param opts table|nil
