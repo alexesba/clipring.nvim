@@ -1,3 +1,8 @@
 deps/
 nvim.log
 idea.md
+
+# CI (negate if a global gitignore ignores .github)
+!.github/
+!.github/workflows/
+!.github/workflows/**
