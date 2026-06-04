@@ -4,10 +4,16 @@ local function linewise(regtype)
   return regtype == "V"
 end
 
---- Insert at cursor and return to insert mode (avoids nvim_put type issues).
+--- Insert at cursor in Insert mode.
 ---@param lines string[]
 ---@param regtype string
-local function paste_insert_mode(lines, regtype)
+---@param cursor number[]|nil {row, col} saved when ClipRing opened
+local function paste_insert_mode(lines, regtype, cursor)
+  if cursor then
+    vim.api.nvim_win_set_cursor(0, cursor)
+  end
+  vim.cmd("startinsert")
+
   local buf = vim.api.nvim_get_current_buf()
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
 
@@ -16,9 +22,9 @@ local function paste_insert_mode(lines, regtype)
     vim.api.nvim_win_set_cursor(0, { row + #lines - 1, 0 })
   else
     vim.api.nvim_buf_set_text(buf, row - 1, col, row - 1, col, lines)
-    local last_row = row + #lines - 2
+    local last_row = row + #lines - 1
     local last_col = col + #(lines[#lines] or "")
-    vim.api.nvim_win_set_cursor(0, { last_row + 1, last_col })
+    vim.api.nvim_win_set_cursor(0, { last_row, last_col })
   end
 
   vim.cmd("startinsert")
@@ -188,7 +194,8 @@ end
 ---@param opener_mode string
 ---@param visual_marks table|nil
 ---@param opener_win number|nil
-function M.apply(entry, opener_mode, visual_marks, opener_win)
+---@param opener_cursor number[]|nil
+function M.apply(entry, opener_mode, visual_marks, opener_win, opener_cursor)
   local lines = entry.lines
   local regtype = entry.regtype
 
@@ -198,7 +205,7 @@ function M.apply(entry, opener_mode, visual_marks, opener_win)
 
   local function do_paste()
     if opener_mode == "i" then
-      paste_insert_mode(lines, regtype)
+      paste_insert_mode(lines, regtype, opener_cursor)
       return
     end
 
