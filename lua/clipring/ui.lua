@@ -178,11 +178,22 @@ local function reorder_current(delta)
   end
 end
 
+local function picker_mapping(key, fallback)
+  local value = config.get()[key]
+  if value == false or value == "" then
+    return nil
+  end
+  if type(value) == "string" then
+    return value
+  end
+  return fallback
+end
+
 local function attach_keymaps()
-  local opts = { buffer = state.buf, silent = true, nowait = true }
+  local map_opts = { buffer = state.buf, silent = true, nowait = true }
 
   local function map(lhs, rhs)
-    vim.keymap.set(NAV_MODES, lhs, rhs, opts)
+    vim.keymap.set(NAV_MODES, lhs, rhs, map_opts)
   end
 
   map("j", function()
@@ -197,12 +208,19 @@ local function attach_keymaps()
   map("<Up>", function()
     move_selection(-1)
   end)
-  map("<C-j>", function()
-    reorder_current(1)
-  end)
-  map("<C-k>", function()
-    reorder_current(-1)
-  end)
+
+  local reorder_down = picker_mapping("reorder_down_mapping", "<C-j>")
+  if reorder_down then
+    map(reorder_down, function()
+      reorder_current(1)
+    end)
+  end
+  local reorder_up = picker_mapping("reorder_up_mapping", "<C-k>")
+  if reorder_up then
+    map(reorder_up, function()
+      reorder_current(-1)
+    end)
+  end
   map("<CR>", function()
     select_current()
   end)

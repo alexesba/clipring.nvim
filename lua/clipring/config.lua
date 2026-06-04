@@ -8,6 +8,8 @@ local M = {}
 ---@field deduplicate boolean
 ---@field min_length number
 ---@field open_mapping string|nil
+---@field reorder_down_mapping string|false|nil move selected entry down in picker (default `<C-j>`)
+---@field reorder_up_mapping string|false|nil move selected entry up in picker (default `<C-k>`)
 
 M.defaults = {
   max_entries = 100,
@@ -17,6 +19,8 @@ M.defaults = {
   deduplicate = true,
   min_length = 1,
   open_mapping = nil,
+  reorder_down_mapping = "<C-j>",
+  reorder_up_mapping = "<C-k>",
 }
 
 ---@type ClipRingConfig

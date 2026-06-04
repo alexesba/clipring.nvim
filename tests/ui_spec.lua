@@ -46,6 +46,23 @@ describe("clipring.ui", function()
     assert.are.equal(2, h.clipring_selected_line(clip_buf))
   end)
 
+  it("maps custom reorder keys from config", function()
+    require("clipring.config").setup({
+      max_entries = 20,
+      deduplicate = true,
+      min_length = 1,
+      persist = false,
+      reorder_down_mapping = "<C-n>",
+      reorder_up_mapping = "<C-p>",
+    })
+    ui.open()
+    feed_clipring("<C-n>")
+    assert.are.equal("older", ring.get(1).lines[1])
+    feed_clipring("<C-p>")
+    assert.are.equal("newer", ring.get(1).lines[1])
+    ui.close()
+  end)
+
   it("maps Ctrl-j and Ctrl-k to reorder yanks in the ring", function()
     ui.open()
     assert.are.equal("newer", ring.get(1).lines[1])

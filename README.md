@@ -64,8 +64,12 @@ require("clipring").setup({
   deduplicate = true,        -- move duplicates to top instead of re-adding
   min_length = 1,            -- ignore yanks shorter than this (chars)
   open_mapping = nil,        -- e.g. "<leader>y" to open from any mode
+  reorder_down_mapping = "<C-j>", -- picker: move entry down in history (false to disable)
+  reorder_up_mapping = "<C-k>",   -- picker: move entry up in history (false to disable)
 })
 ```
+
+Omit `reorder_down_mapping` / `reorder_up_mapping` to keep the defaults above. Set either to `false` to turn off that binding.
 
 ## Tests
 
