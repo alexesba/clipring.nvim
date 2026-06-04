@@ -109,6 +109,22 @@ describe("clipring.paste", function()
     assert.are.equal("line one\nfinal!", h.buf_text(buf))
   end)
 
+  it("linewise paste on empty line does not add a blank line above", function()
+    local lines = {}
+    for i = 1, 8 do
+      lines[i] = "x" .. i
+    end
+    lines[9] = "hola"
+    lines[10] = ""
+    lines[11] = ""
+    vim.api.nvim_buf_set_lines(buf, 0, -1, true, lines)
+    local curpos = { 0, 11, 1, 0 }
+    paste.apply(h.entry({ "pasted" }, "V"), "n", nil, win, curpos)
+    assert.are.equal(11, vim.api.nvim_buf_line_count(buf))
+    assert.are.equal("pasted", vim.api.nvim_buf_get_lines(buf, 10, 11, false)[1])
+    assert.are.equal("", vim.api.nvim_buf_get_lines(buf, 9, 10, false)[1])
+  end)
+
   it("insert mode linewise paste appends after last line at EOL", function()
     vim.api.nvim_buf_set_lines(buf, 0, -1, true, { "hello" })
     local curpos = { 0, 1, 6, 0 }

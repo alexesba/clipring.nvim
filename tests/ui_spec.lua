@@ -68,6 +68,45 @@ describe("clipring.ui", function()
     ui.close()
   end)
 
+  it("ignores stale visual marks when opened from normal mode", function()
+    local lines = {}
+    for i = 1, 8 do
+      lines[i] = "x" .. i
+    end
+    lines[9] = "hola"
+    lines[10] = ""
+    lines[11] = ""
+    vim.api.nvim_buf_set_lines(buf, 0, -1, true, lines)
+    h.charwise_visual(win, h.pos(buf, 9, 1), h.pos(buf, 9, 4))
+    vim.cmd("normal! \27")
+    vim.api.nvim_win_set_cursor(win, { 11, 0 })
+    ui.open()
+    assert.is_nil(ui._state().visual_marks)
+    ui.close()
+  end)
+
+  it("pastes on empty line after stale visual when opened from normal mode", function()
+    local paste = require("clipring.paste")
+    local lines = {}
+    for i = 1, 8 do
+      lines[i] = "x" .. i
+    end
+    lines[9] = "hola"
+    lines[10] = ""
+    lines[11] = ""
+    vim.api.nvim_buf_set_lines(buf, 0, -1, true, lines)
+    h.charwise_visual(win, h.pos(buf, 9, 1), h.pos(buf, 9, 4))
+    vim.cmd("normal! \27")
+    vim.api.nvim_win_set_cursor(win, { 11, 0 })
+    ui.open()
+    local s = ui._state()
+    ui.close(false)
+    vim.api.nvim_set_current_win(win)
+    paste.apply({ lines = { "PASTE" }, regtype = "v" }, "n", nil, win, s.opener_cursor)
+    assert.are.equal("hola", vim.api.nvim_buf_get_lines(buf, 8, 9, false)[1])
+    assert.are.equal("PASTE", vim.api.nvim_buf_get_lines(buf, 10, 11, false)[1])
+  end)
+
   it("pastes selected ring entry when confirming from insert opener", function()
     local paste = require("clipring.paste")
     vim.api.nvim_buf_set_lines(buf, 0, -1, true, { "hola mundo " })

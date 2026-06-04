@@ -235,7 +235,10 @@ function M.open(opts)
     state.opener_mode = vim.api.nvim_get_mode().mode
   end
   state.opener_cursor = capture_opener_cursor(state.opener_win, state.opener_mode)
-  state.visual_marks = paste.capture_visual_marks(state.opener_win, state.opener_mode)
+  state.visual_marks = nil
+  if paste.opener_in_visual_mode(state.opener_mode) then
+    state.visual_marks = paste.capture_visual_marks(state.opener_win, state.opener_mode)
+  end
   state.index = 1
 
   state.buf = vim.api.nvim_create_buf(false, true)
@@ -280,6 +283,7 @@ function M._state()
   return {
     opener_mode = state.opener_mode,
     opener_cursor = state.opener_cursor,
+    visual_marks = state.visual_marks,
     index = state.index,
   }
 end

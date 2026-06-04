@@ -26,6 +26,10 @@ end
 
 local function at_end_of_line(buf, row, cursor, win_col)
   local line = vim.api.nvim_buf_get_lines(buf, row, row + 1, false)[1] or ""
+  -- Paste into the empty line; do not insert after it (that leaves a blank line above).
+  if #line == 0 then
+    return false
+  end
   if cursor and is_getcurpos(cursor) then
     return byte_col_from_curpos(cursor, buf) >= #line
   end
@@ -95,6 +99,11 @@ end
 
 local function is_visual_mode(mode)
   return mode == "v" or mode == "V" or mode == "\022"
+end
+
+--- Whether ClipRing should replace a visual selection for this opener mode.
+function M.opener_in_visual_mode(mode)
+  return is_visual_mode(mode)
 end
 
 local function region_regtype(visual_mode)
