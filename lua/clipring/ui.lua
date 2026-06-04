@@ -15,6 +15,7 @@ local state = {
   opener_mode = "n",
   visual_marks = nil,
   index = 1,
+  list_col_width = 50,
 }
 
 local ns = vim.api.nvim_create_namespace("ClipRing")
@@ -29,17 +30,22 @@ local function entry_kind(entry)
   return "c"
 end
 
---- One-line label for the history list.
-local function list_label(entry)
+--- One-line label for the history list (truncated to fit the list pane).
+local function list_label(entry, list_cols)
   local opts = config.get()
   local text = table.concat(entry.lines, " "):gsub("\t", " "):gsub("%s+", " ")
-  if #text > opts.preview_length then
-    text = text:sub(1, opts.preview_length - 3) .. "..."
+  local header = string.format("[%s] ", entry_kind(entry))
+  local prefix_cols = 2 -- "▸ " or "  "
+  local budget = (list_cols or state.list_col_width) - prefix_cols - vim.fn.strdisplaywidth(header)
+  budget = math.min(budget, opts.preview_length)
+  budget = math.max(budget, 8)
+  if vim.fn.strdisplaywidth(text) > budget then
+    text = vim.fn.strcharpart(text, 0, budget - 3) .. "..."
   end
   if text == "" then
     text = "(empty)"
   end
-  return string.format("[%s] %s", entry_kind(entry), text)
+  return header .. text
 end
 
 local function set_buf_lines(buf, lines)
@@ -67,7 +73,7 @@ local function refresh_list_buffer()
     end
     for i, entry in ipairs(all) do
       local prefix = (i == state.index) and "▸ " or "  "
-      table.insert(lines, prefix .. list_label(entry))
+      table.insert(lines, prefix .. list_label(entry, state.list_col_width))
     end
   end
 
@@ -95,7 +101,11 @@ local function preview_lines_for_entry(entry)
     table.insert(truncated, string.format("… (%d more lines)", #lines - max_lines))
     lines = truncated
   end
-  return lines
+  local padded = {}
+  for i, line in ipairs(lines) do
+    padded[i] = "  " .. line
+  end
+  return padded
 end
 
 local function refresh_preview_buffer()
@@ -351,19 +361,27 @@ local function picker_layout()
   local height = math.max(list_lines, preview_lines, 3)
   height = math.min(height, opts.picker_max_height, vim.o.lines - 4)
 
-  local total_width = math.min(opts.picker_width, vim.o.columns - 4)
-  local list_width = math.min(opts.list_width, total_width - 20)
-  if list_width < 24 then
-    list_width = math.min(24, total_width - 20)
-  end
-  local preview_width = total_width - list_width
-  if preview_width < 20 then
-    preview_width = 20
+  local margin = 8
+  local total_width = opts.picker_width > 0 and opts.picker_width or (vim.o.columns - margin)
+  total_width = math.min(total_width, vim.o.columns - margin)
+  total_width = math.max(total_width, 60)
+
+  local preview_cap = math.max(20, opts.preview_max_width or 80)
+  preview_cap = math.min(preview_cap, total_width - 36)
+
+  local preview_width = preview_cap
+  local list_width
+  if opts.list_width > 0 then
+    list_width = math.min(opts.list_width, total_width - preview_width)
+  else
     list_width = total_width - preview_width
   end
+  list_width = math.max(list_width, 36)
 
+  local float_gap = 1
+  local footprint = (list_width + 2) + float_gap + (preview_width + 2)
   local row = math.max(0, math.floor((vim.o.lines - height) / 2))
-  local col = math.max(0, math.floor((vim.o.columns - total_width) / 2))
+  local col = math.max(0, math.floor((vim.o.columns - footprint) / 2))
 
   return {
     row = row,
@@ -371,7 +389,32 @@ local function picker_layout()
     height = height,
     list_width = list_width,
     preview_width = preview_width,
+    preview_col = col + list_width + 2 + float_gap,
+    float_gap = float_gap,
   }
+end
+
+local function apply_picker_layout(layout)
+  if not state.list_win or not vim.api.nvim_win_is_valid(state.list_win) then
+    return
+  end
+  state.list_col_width = layout.list_width
+  vim.api.nvim_win_set_config(state.list_win, {
+    relative = "editor",
+    width = layout.list_width,
+    height = layout.height,
+    row = layout.row,
+    col = layout.col,
+  })
+  if state.preview_win and vim.api.nvim_win_is_valid(state.preview_win) then
+    vim.api.nvim_win_set_config(state.preview_win, {
+      relative = "editor",
+      width = layout.preview_width,
+      height = layout.height,
+      row = layout.row,
+      col = layout.preview_col,
+    })
+  end
 end
 
 local float_opts = {
@@ -380,10 +423,15 @@ local float_opts = {
   border = "rounded",
 }
 
-local function apply_float_winhl(win)
-  if vim.api.nvim_win_is_valid(win) then
-    vim.wo[win].winhl = "Normal:NormalFloat,FloatBorder:FloatBorder,CursorLine:Visual"
+local function configure_float_win(win)
+  if not vim.api.nvim_win_is_valid(win) then
+    return
   end
+  vim.wo[win].winhl = "Normal:NormalFloat,FloatBorder:FloatBorder,CursorLine:Visual"
+  vim.wo[win].number = false
+  vim.wo[win].relativenumber = false
+  vim.wo[win].signcolumn = "no"
+  vim.wo[win].foldcolumn = "0"
 end
 
 ---@param opts table|nil
@@ -392,6 +440,7 @@ function M.open(opts)
   opts = opts or {}
 
   if state.list_win and vim.api.nvim_win_is_valid(state.list_win) then
+    apply_picker_layout(picker_layout())
     refresh_buffers()
     focus_list_normal()
     return
@@ -414,6 +463,7 @@ function M.open(opts)
   state.preview_buf = create_readonly_buf("clipring://preview", "clipring_preview")
 
   local layout = picker_layout()
+  state.list_col_width = layout.list_width
 
   state.list_win = vim.api.nvim_open_win(state.list_buf, true, vim.tbl_extend("force", float_opts, {
     width = layout.list_width,
@@ -428,11 +478,11 @@ function M.open(opts)
     width = layout.preview_width,
     height = layout.height,
     row = layout.row,
-    col = layout.col + layout.list_width,
+    col = layout.preview_col,
   }))
 
-  apply_float_winhl(state.list_win)
-  apply_float_winhl(state.preview_win)
+  configure_float_win(state.list_win)
+  configure_float_win(state.preview_win)
 
   attach_keymaps()
   refresh_buffers()

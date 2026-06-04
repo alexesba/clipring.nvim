@@ -56,7 +56,7 @@ With a minimal `lazy.nvim` / `packer.nvim` setup, Neovim loads the plugin from `
 | `:ClipRing` | Always available (no keymap required) |
 | Your `open_mapping` | After you set one in `setup()` (e.g. `<leader>y`) |
 
-The picker opens as two side-by-side floats: a **history list** (newest first, one line per entry with register type `c` / `l` / `b`) and a **preview pane** showing the selected yank with real line breaks (up to `preview_max_lines`).
+The picker opens as two side-by-side floats: a wide **history list** (newest first, one line per entry with register type `c` / `l` / `b`) and a narrower **preview pane** showing the selected yank with real line breaks (up to `preview_max_lines`).
 
 ### Inside the picker
 
@@ -103,8 +103,9 @@ require("clipring").setup({
   reorder_down_mapping = "<C-j>", -- picker: move entry down in history (false to disable)
   reorder_up_mapping = "<C-k>",   -- picker: move entry up in history (false to disable)
   copy_mapping = "y",             -- picker: copy to system clipboard (false to disable)
-  picker_width = 90,            -- total width of list + preview (columns)
-  list_width = 34,              -- width of the history list
+  picker_width = 80,            -- total inner width of list + preview (0 = editor width minus margin)
+  list_width = 0,               -- history list columns (0 = remaining width after preview)
+  preview_max_width = 80,       -- max width of the preview pane (columns)
   picker_max_height = 18,       -- max height of both floats (lines)
   preview_max_lines = 16,       -- max lines shown per entry in the preview pane
 })
