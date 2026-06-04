@@ -1,6 +1,6 @@
 # clipring.nvim
 
-[![Tests](https://github.com/alexesba/clipring.nvim/actions/workflows/test.yml/badge.svg)](https://github.com/alexesba/clipring.nvim/actions/workflows/test.yml)
+[![Tests](https://github.com/alexesba/clipring.nvim/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/alexesba/clipring.nvim/actions/workflows/test.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Minimal yank history for Neovim — a lightweight Lua plugin inspired by YankRing and Windows Clipboard History. No required dependencies.
