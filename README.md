@@ -6,7 +6,7 @@ Minimal yank history for Neovim — a lightweight Lua plugin inspired by YankRin
 
 - Automatic capture of every yank
 - Floating popup history (`:ClipRing`)
-- Navigate with `j` / `k`, paste with `<Enter>`, delete with `dd`
+- Navigate with `j` / `k`, reorder with `<C-j>` / `<C-k>`, paste with `<Enter>`, delete with `dd`
 - Works from Normal, Insert, and Visual modes
 - Optional JSON persistence between sessions
 - Configurable history size and keymaps
@@ -46,6 +46,7 @@ use({ "your-user/clipring.nvim", config = function() require("clipring").setup()
 |---------------|--------|
 | `:ClipRing` | Open history popup |
 | `j` / `k` | Move selection |
+| `<C-j>` / `<C-k>` | Move selected entry down / up in history order |
 | `<Enter>` | Paste selected entry and close |
 | `dd` | Remove selected entry from history |
 | `q` / `<Esc>` | Close without pasting |

@@ -70,9 +70,10 @@ end
 
 local NAV_MODES = { "n", "i", "v", "x", "s" }
 
---- Insert mode: full getcurpos() (supports cursor past end-of-line). Else win {row, col}.
+--- Insert/Normal: full getcurpos() (accurate at end-of-line/file). Else win {row, col}.
 local function capture_opener_cursor(win, mode)
-  if mode == "i" then
+  local ch = mode:sub(1, 1)
+  if ch == "i" or ch == "n" then
     return vim.fn.getcurpos()
   end
   return vim.api.nvim_win_get_cursor(win)
@@ -156,13 +157,25 @@ local function delete_current()
   refresh_buffer()
 end
 
-local function move(delta)
+local function move_selection(delta)
   local count = ring.count()
   if count == 0 then
     return
   end
   state.index = ((state.index - 1 + delta) % count) + 1
   refresh_buffer()
+end
+
+local function reorder_current(delta)
+  if ring.count() == 0 then
+    return
+  end
+  local new_index = ring.move(state.index, delta)
+  if new_index then
+    state.index = new_index
+    persist.save()
+    refresh_buffer()
+  end
 end
 
 local function attach_keymaps()
@@ -173,16 +186,22 @@ local function attach_keymaps()
   end
 
   map("j", function()
-    move(1)
+    move_selection(1)
   end)
   map("k", function()
-    move(-1)
+    move_selection(-1)
   end)
   map("<Down>", function()
-    move(1)
+    move_selection(1)
   end)
   map("<Up>", function()
-    move(-1)
+    move_selection(-1)
+  end)
+  map("<C-j>", function()
+    reorder_current(1)
+  end)
+  map("<C-k>", function()
+    reorder_current(-1)
   end)
   map("<CR>", function()
     select_current()
@@ -261,6 +280,7 @@ function M._state()
   return {
     opener_mode = state.opener_mode,
     opener_cursor = state.opener_cursor,
+    index = state.index,
   }
 end
 

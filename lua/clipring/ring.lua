@@ -77,6 +77,22 @@ function M.remove(index)
   return true
 end
 
+--- Swap entry at {index} with its neighbor. Negative delta moves toward the top (index 1).
+---@param index number 1-based
+---@param delta number -1 or 1
+---@return number|nil new index after move, or nil if unchanged
+function M.move(index, delta)
+  if delta == 0 or index < 1 or index > #entries then
+    return nil
+  end
+  local new_index = index + delta
+  if new_index < 1 or new_index > #entries then
+    return nil
+  end
+  entries[index], entries[new_index] = entries[new_index], entries[index]
+  return new_index
+end
+
 function M.clear()
   entries = {}
 end
