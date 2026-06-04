@@ -6,8 +6,10 @@ function M.setup()
   if not ok or not wk_config.disable or not wk_config.disable.ft then
     return
   end
-  if not vim.tbl_contains(wk_config.disable.ft, "clipring") then
-    table.insert(wk_config.disable.ft, "clipring")
+  for _, ft in ipairs({ "clipring", "clipring_preview" }) do
+    if not vim.tbl_contains(wk_config.disable.ft, ft) then
+      table.insert(wk_config.disable.ft, ft)
+    end
   end
 end
 

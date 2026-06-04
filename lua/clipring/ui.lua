@@ -6,8 +6,10 @@ local persist = require("clipring.persist")
 local M = {}
 
 local state = {
-  buf = nil,
-  win = nil,
+  list_buf = nil,
+  list_win = nil,
+  preview_buf = nil,
+  preview_win = nil,
   opener_win = nil,
   opener_cursor = nil,
   opener_mode = "n",
@@ -17,7 +19,18 @@ local state = {
 
 local ns = vim.api.nvim_create_namespace("ClipRing")
 
-local function preview_line(entry)
+local function entry_kind(entry)
+  if entry.regtype == "V" then
+    return "l"
+  end
+  if entry.regtype == "\022" or entry.regtype:find("^%d") or entry.regtype == "^V" then
+    return "b"
+  end
+  return "c"
+end
+
+--- One-line label for the history list.
+local function list_label(entry)
   local opts = config.get()
   local text = table.concat(entry.lines, " "):gsub("\t", " "):gsub("%s+", " ")
   if #text > opts.preview_length then
@@ -26,17 +39,17 @@ local function preview_line(entry)
   if text == "" then
     text = "(empty)"
   end
-  local kind = "c"
-  if entry.regtype == "V" then
-    kind = "l"
-  elseif entry.regtype == "\022" or entry.regtype:find("^%d") or entry.regtype == "^V" then
-    kind = "b"
-  end
-  return string.format("[%s] %s", kind, text)
+  return string.format("[%s] %s", entry_kind(entry), text)
 end
 
-local function refresh_buffer()
-  if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then
+local function set_buf_lines(buf, lines)
+  vim.api.nvim_buf_set_option(buf, "modifiable", true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.api.nvim_buf_set_option(buf, "modifiable", false)
+end
+
+local function refresh_list_buffer()
+  if not state.list_buf or not vim.api.nvim_buf_is_valid(state.list_buf) then
     return
   end
 
@@ -54,18 +67,55 @@ local function refresh_buffer()
     end
     for i, entry in ipairs(all) do
       local prefix = (i == state.index) and "▸ " or "  "
-      table.insert(lines, prefix .. preview_line(entry))
+      table.insert(lines, prefix .. list_label(entry))
     end
   end
 
-  vim.api.nvim_buf_set_option(state.buf, "modifiable", true)
-  vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
-  vim.api.nvim_buf_set_option(state.buf, "modifiable", false)
+  set_buf_lines(state.list_buf, lines)
 
   if #all > 0 then
-    vim.api.nvim_buf_clear_namespace(state.buf, ns, 0, -1)
-    vim.api.nvim_buf_add_highlight(state.buf, ns, "CursorLine", state.index - 1, 0, -1)
+    vim.api.nvim_buf_clear_namespace(state.list_buf, ns, 0, -1)
+    vim.api.nvim_buf_add_highlight(state.list_buf, ns, "CursorLine", state.index - 1, 0, -1)
   end
+end
+
+local function preview_lines_for_entry(entry)
+  if not entry or not entry.lines or #entry.lines == 0 then
+    return { "(empty)" }
+  end
+
+  local opts = config.get()
+  local lines = vim.deepcopy(entry.lines)
+  local max_lines = opts.preview_max_lines
+  if max_lines > 0 and #lines > max_lines then
+    local truncated = {}
+    for i = 1, max_lines do
+      truncated[i] = lines[i]
+    end
+    table.insert(truncated, string.format("… (%d more lines)", #lines - max_lines))
+    lines = truncated
+  end
+  return lines
+end
+
+local function refresh_preview_buffer()
+  if not state.preview_buf or not vim.api.nvim_buf_is_valid(state.preview_buf) then
+    return
+  end
+
+  local all = ring.get_all()
+  if #all == 0 then
+    set_buf_lines(state.preview_buf, { "" })
+    return
+  end
+
+  local entry = all[state.index]
+  set_buf_lines(state.preview_buf, preview_lines_for_entry(entry))
+end
+
+local function refresh_buffers()
+  refresh_list_buffer()
+  refresh_preview_buffer()
 end
 
 local NAV_MODES = { "n", "i", "v", "x", "s" }
@@ -79,21 +129,34 @@ local function capture_opener_cursor(win, mode)
   return vim.api.nvim_win_get_cursor(win)
 end
 
+local function close_windows_and_bufs()
+  if state.list_win and vim.api.nvim_win_is_valid(state.list_win) then
+    vim.api.nvim_win_close(state.list_win, true)
+  end
+  if state.preview_win and vim.api.nvim_win_is_valid(state.preview_win) then
+    vim.api.nvim_win_close(state.preview_win, true)
+  end
+  if state.list_buf and vim.api.nvim_buf_is_valid(state.list_buf) then
+    vim.api.nvim_buf_delete(state.list_buf, { force = true })
+  end
+  if state.preview_buf and vim.api.nvim_buf_is_valid(state.preview_buf) then
+    vim.api.nvim_buf_delete(state.preview_buf, { force = true })
+  end
+  state.list_buf = nil
+  state.list_win = nil
+  state.preview_buf = nil
+  state.preview_win = nil
+end
+
 local function close(restore_insert)
   local opener_mode = state.opener_mode
   local opener_win = state.opener_win
 
-  if state.win and vim.api.nvim_win_is_valid(state.win) then
-    vim.api.nvim_win_close(state.win, true)
-  end
-  if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
-    vim.api.nvim_buf_delete(state.buf, { force = true })
-  end
+  close_windows_and_bufs()
+
   if opener_win and vim.api.nvim_win_is_valid(opener_win) then
     vim.api.nvim_set_current_win(opener_win)
   end
-  state.buf = nil
-  state.win = nil
   state.opener_win = nil
   state.opener_cursor = nil
   state.visual_marks = nil
@@ -103,11 +166,11 @@ local function close(restore_insert)
   end
 end
 
-local function focus_float_normal()
-  if not state.win or not vim.api.nvim_win_is_valid(state.win) then
+local function focus_list_normal()
+  if not state.list_win or not vim.api.nvim_win_is_valid(state.list_win) then
     return
   end
-  vim.api.nvim_set_current_win(state.win)
+  vim.api.nvim_set_current_win(state.list_win)
   vim.cmd("stopinsert")
 end
 
@@ -131,7 +194,6 @@ local function select_current()
   close(false)
   if opener_win and vim.api.nvim_win_is_valid(opener_win) then
     vim.api.nvim_set_current_win(opener_win)
-    -- Win cursor only; insert uses getcurpos restored inside paste_insert_mode.
     if opener_cursor and #opener_cursor < 4 then
       vim.api.nvim_win_set_cursor(opener_win, opener_cursor)
     end
@@ -165,7 +227,7 @@ local function delete_current()
     state.index = ring.count()
   end
 
-  refresh_buffer()
+  refresh_buffers()
 end
 
 local function move_selection(delta)
@@ -174,7 +236,7 @@ local function move_selection(delta)
     return
   end
   state.index = ((state.index - 1 + delta) % count) + 1
-  refresh_buffer()
+  refresh_buffers()
 end
 
 local function reorder_current(delta)
@@ -185,7 +247,7 @@ local function reorder_current(delta)
   if new_index then
     state.index = new_index
     persist.save()
-    refresh_buffer()
+    refresh_buffers()
   end
 end
 
@@ -201,9 +263,8 @@ local function picker_mapping(key, fallback)
 end
 
 local function attach_keymaps()
-  -- noremap: override global maps (e.g. <C-j> -> :move) on this read-only buffer.
   local map_opts = {
-    buffer = state.buf,
+    buffer = state.list_buf,
     silent = true,
     nowait = true,
     noremap = true,
@@ -263,7 +324,6 @@ local function attach_keymaps()
     close()
   end, "ClipRing: close")
 
-  -- Real Lua maps (not <Nop>): which-key treats <Nop> as unmapped and hooks <C-w>.
   local function block_window_prefix()
     return
   end
@@ -271,14 +331,69 @@ local function attach_keymaps()
   map("<C-W>", block_window_prefix, "ClipRing: disable window switch")
 end
 
+local function create_readonly_buf(name, filetype)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(buf, name)
+  vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(buf, "filetype", filetype)
+  vim.api.nvim_buf_set_option(buf, "swapfile", false)
+  vim.api.nvim_buf_set_option(buf, "modifiable", false)
+  return buf
+end
+
+local function picker_layout()
+  local opts = config.get()
+  local count = ring.count()
+  local list_lines = count > 0 and count or 3
+  local entry = count > 0 and ring.get(state.index) or nil
+  local preview_lines = entry and #preview_lines_for_entry(entry) or 1
+
+  local height = math.max(list_lines, preview_lines, 3)
+  height = math.min(height, opts.picker_max_height, vim.o.lines - 4)
+
+  local total_width = math.min(opts.picker_width, vim.o.columns - 4)
+  local list_width = math.min(opts.list_width, total_width - 20)
+  if list_width < 24 then
+    list_width = math.min(24, total_width - 20)
+  end
+  local preview_width = total_width - list_width
+  if preview_width < 20 then
+    preview_width = 20
+    list_width = total_width - preview_width
+  end
+
+  local row = math.max(0, math.floor((vim.o.lines - height) / 2))
+  local col = math.max(0, math.floor((vim.o.columns - total_width) / 2))
+
+  return {
+    row = row,
+    col = col,
+    height = height,
+    list_width = list_width,
+    preview_width = preview_width,
+  }
+end
+
+local float_opts = {
+  relative = "editor",
+  style = "minimal",
+  border = "rounded",
+}
+
+local function apply_float_winhl(win)
+  if vim.api.nvim_win_is_valid(win) then
+    vim.wo[win].winhl = "Normal:NormalFloat,FloatBorder:FloatBorder,CursorLine:Visual"
+  end
+end
+
 ---@param opts table|nil
 ---@field from_insert boolean|nil set when the open keymap runs in Insert mode
 function M.open(opts)
   opts = opts or {}
 
-  if state.win and vim.api.nvim_win_is_valid(state.win) then
-    refresh_buffer()
-    focus_float_normal()
+  if state.list_win and vim.api.nvim_win_is_valid(state.list_win) then
+    refresh_buffers()
+    focus_list_normal()
     return
   end
 
@@ -295,36 +410,36 @@ function M.open(opts)
   end
   state.index = 1
 
-  state.buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(state.buf, "clipring://history")
-  vim.api.nvim_buf_set_option(state.buf, "bufhidden", "wipe")
-  vim.api.nvim_buf_set_option(state.buf, "filetype", "clipring")
-  vim.api.nvim_buf_set_option(state.buf, "swapfile", false)
+  state.list_buf = create_readonly_buf("clipring://history", "clipring")
+  state.preview_buf = create_readonly_buf("clipring://preview", "clipring_preview")
 
-  local width = math.min(80, vim.o.columns - 4)
-  local height = math.min(15, ring.count())
-  if height < 3 then
-    height = 3
-  end
+  local layout = picker_layout()
 
-  state.win = vim.api.nvim_open_win(state.buf, true, {
-    relative = "editor",
-    width = width,
-    height = height,
-    row = math.floor((vim.o.lines - height) / 2),
-    col = math.floor((vim.o.columns - width) / 2),
-    style = "minimal",
-    border = "rounded",
+  state.list_win = vim.api.nvim_open_win(state.list_buf, true, vim.tbl_extend("force", float_opts, {
+    width = layout.list_width,
+    height = layout.height,
+    row = layout.row,
+    col = layout.col,
     title = " ClipRing ",
     title_pos = "center",
-  })
+  }))
+
+  state.preview_win = vim.api.nvim_open_win(state.preview_buf, false, vim.tbl_extend("force", float_opts, {
+    width = layout.preview_width,
+    height = layout.height,
+    row = layout.row,
+    col = layout.col + layout.list_width,
+  }))
+
+  apply_float_winhl(state.list_win)
+  apply_float_winhl(state.preview_win)
 
   attach_keymaps()
-  refresh_buffer()
-  focus_float_normal()
+  refresh_buffers()
+  focus_list_normal()
 
   if ring.count() > 0 then
-    vim.api.nvim_win_set_cursor(state.win, { state.index, 0 })
+    vim.api.nvim_win_set_cursor(state.list_win, { state.index, 0 })
   end
 end
 
@@ -339,6 +454,8 @@ function M._state()
     opener_cursor = state.opener_cursor,
     visual_marks = state.visual_marks,
     index = state.index,
+    list_buf = state.list_buf,
+    preview_buf = state.preview_buf,
   }
 end
 

@@ -59,7 +59,15 @@ end
 
 function M.find_clipring_buf()
   for _, b in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_get_name(b):find("clipring://", 1, true) then
+    if vim.api.nvim_buf_get_name(b) == "clipring://history" then
+      return b
+    end
+  end
+end
+
+function M.find_clipring_preview_buf()
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_get_name(b) == "clipring://preview" then
       return b
     end
   end
