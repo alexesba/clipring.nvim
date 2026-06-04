@@ -10,6 +10,7 @@ local M = {}
 ---@field open_mapping string|string[]|false|nil keymap(s) to open picker (`nil` = `:ClipRing` only)
 ---@field reorder_down_mapping string|false|nil move selected entry down in picker (default `<C-j>`)
 ---@field reorder_up_mapping string|false|nil move selected entry up in picker (default `<C-k>`)
+---@field copy_mapping string|false|nil copy selected entry to system clipboard in picker (default `y`)
 
 M.defaults = {
   max_entries = 100,
@@ -21,6 +22,7 @@ M.defaults = {
   open_mapping = nil,
   reorder_down_mapping = "<C-j>",
   reorder_up_mapping = "<C-k>",
+  copy_mapping = "y",
 }
 
 ---@type ClipRingConfig

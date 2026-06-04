@@ -307,4 +307,19 @@ function M.apply(entry, opener_mode, visual_marks, opener_win, opener_cursor)
   end
 end
 
+--- Copy ring entry to unnamed and system clipboard registers without pasting.
+---@param entry ClipRingEntry|nil
+---@return boolean
+function M.copy_to_clipboard(entry)
+  if not entry or not entry.lines or #entry.lines == 0 then
+    return false
+  end
+  local lines = entry.lines
+  local regtype = entry.regtype or "v"
+  vim.fn.setreg('"', lines, regtype)
+  vim.fn.setreg("+", lines, regtype)
+  vim.fn.setreg("*", lines, regtype)
+  return true
+end
+
 return M
