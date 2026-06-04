@@ -246,9 +246,12 @@ local function attach_keymaps()
     close()
   end, "ClipRing: close")
 
-  -- Keep focus in the picker (Telescope-style); close with q/Esc before <C-w>.
-  map("<C-w>", "<Nop>", "ClipRing: disable window switch")
-  map("<C-W>", "<Nop>", "ClipRing: disable window switch")
+  -- Real Lua maps (not <Nop>): which-key treats <Nop> as unmapped and hooks <C-w>.
+  local function block_window_prefix()
+    return
+  end
+  map("<C-w>", block_window_prefix, "ClipRing: disable window switch")
+  map("<C-W>", block_window_prefix, "ClipRing: disable window switch")
 end
 
 ---@param opts table|nil

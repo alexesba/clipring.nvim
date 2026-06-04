@@ -36,6 +36,18 @@ describe("clipring.ui", function()
     return clip_buf
   end
 
+  it("maps Ctrl-w without a which-key trigger on the picker buffer", function()
+    ui.open()
+    local clip_buf = h.find_clipring_buf()
+    vim.api.nvim_set_current_win(vim.fn.bufwinid(clip_buf))
+    local map = vim.fn.maparg("<C-w>", "n", false, true)
+    assert.is_true(type(map) == "table")
+    assert.is_true(map.callback ~= nil)
+    if map.desc then
+      assert.is_nil(map.desc:find("which%-key%-trigger", 1, true))
+    end
+  end)
+
   it("blocks Ctrl-w window switch while picker is focused", function()
     local buf2 = vim.api.nvim_create_buf(true, true)
     local win2 = vim.api.nvim_open_win(buf2, false, {

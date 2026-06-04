@@ -52,7 +52,7 @@ use({ "your-user/clipring.nvim", config = function() require("clipring").setup()
 | `dd` | Remove selected entry from history |
 | `q` / `<Esc>` | Close without pasting |
 
-While the picker is open, `<C-w>` does not switch windows (close the picker first, like Telescope).
+While the picker is open, `<C-w>` does not switch windows or open which-key (close the picker first, like Telescope). `setup()` registers the `clipring` filetype with which-key automatically when that plugin is installed.
 
 In **Insert** mode, `<Enter>` pastes at the cursor without leaving Insert. In **Visual** mode, the selected text is replaced by the chosen entry.
 
