@@ -198,11 +198,16 @@ local function replace_visual_range(marks, lines, regtype)
   vim.api.nvim_buf_set_text(buf, marks.s_row, marks.s_col, marks.e_row, marks.e_col, lines)
 
   if vim.api.nvim_get_current_buf() == buf then
-    local row = marks.s_row + #lines
-    local col = 0
-    if #lines > 0 and not linewise(regtype) then
+    local row = marks.s_row
+    local col = marks.s_col
+    if #lines > 0 then
       row = marks.s_row + #lines - 1
-      col = #lines[#lines]
+      local last = lines[#lines]
+      if #lines == 1 then
+        col = marks.s_col + vim.fn.strlen(last)
+      else
+        col = vim.fn.strlen(last)
+      end
     end
     vim.api.nvim_win_set_cursor(0, { row + 1, col })
   end
