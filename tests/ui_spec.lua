@@ -80,6 +80,47 @@ describe("clipring.ui", function()
     assert.are.equal(1, h.clipring_selected_line(clip_buf))
   end)
 
+  it("shows multiline yank content in the preview pane", function()
+    ring.clear()
+    ring.add({ "alpha", "beta", "gamma" }, "V")
+    ui.open()
+    local preview_buf = h.find_clipring_preview_buf()
+    assert.is_not_nil(preview_buf)
+    assert.same({ "alpha", "beta", "gamma" }, vim.api.nvim_buf_get_lines(preview_buf, 0, -1, false))
+    ui.close()
+  end)
+
+  it("updates preview when selection moves", function()
+    ring.clear()
+    ring.add({ "one", "two" }, "v")
+    ring.add({ "solo" }, "v")
+    ui.open()
+    local preview_buf = h.find_clipring_preview_buf()
+    assert.same({ "solo" }, vim.api.nvim_buf_get_lines(preview_buf, 0, -1, false))
+    feed_clipring("j")
+    assert.same({ "one", "two" }, vim.api.nvim_buf_get_lines(preview_buf, 0, -1, false))
+    ui.close()
+  end)
+
+  it("truncates long previews with a more-lines indicator", function()
+    require("clipring.config").setup({
+      max_entries = 20,
+      deduplicate = true,
+      min_length = 1,
+      persist = false,
+      preview_max_lines = 2,
+    })
+    ring.clear()
+    ring.add({ "a", "b", "c", "d" }, "V")
+    ui.open()
+    local preview_buf = h.find_clipring_preview_buf()
+    local lines = vim.api.nvim_buf_get_lines(preview_buf, 0, -1, false)
+    assert.are.equal("a", lines[1])
+    assert.are.equal("b", lines[2])
+    assert.matches("2 more lines", lines[3])
+    ui.close()
+  end)
+
   it("maps j to move down in the picker while insert mappings exist", function()
     ui.open({ from_insert = true })
     local clip_buf = h.find_clipring_buf()

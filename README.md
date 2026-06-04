@@ -10,7 +10,7 @@ Minimal yank history for Neovim — a lightweight Lua plugin inspired by YankRin
 ## Features
 
 - Automatic capture of every yank
-- Floating popup history (`:ClipRing`)
+- Floating popup history (`:ClipRing`) with a multiline preview pane
 - Navigate with `j` / `k`, reorder with `<C-j>` / `<C-k>`, paste with `<Enter>`, delete with `dd`
 - Works from Normal, Insert, and Visual modes
 - Optional JSON persistence between sessions
@@ -56,7 +56,7 @@ With a minimal `lazy.nvim` / `packer.nvim` setup, Neovim loads the plugin from `
 | `:ClipRing` | Always available (no keymap required) |
 | Your `open_mapping` | After you set one in `setup()` (e.g. `<leader>y`) |
 
-The picker opens as a centered floating window listing recent yanks (newest first). Each line shows the register type (`c` charwise, `l` linewise, `b` block) and a short preview.
+The picker opens as two side-by-side floats: a **history list** (newest first, one line per entry with register type `c` / `l` / `b`) and a **preview pane** showing the selected yank with real line breaks (up to `preview_max_lines`).
 
 ### Inside the picker
 
@@ -70,7 +70,7 @@ The picker opens as a centered floating window listing recent yanks (newest firs
 | `dd` | Delete the selected entry from history |
 | `q` or `<Esc>` | Close without pasting |
 
-While the picker is focused, `<C-w>` does not switch windows or open which-key (close the picker first, like Telescope). If you use [which-key.nvim](https://github.com/folke/which-key.nvim), `setup()` registers the `clipring` filetype so which-key stays off in the picker buffer.
+While the picker is focused, `<C-w>` does not switch windows or open which-key (close the picker first, like Telescope). Keys apply to the history list; the preview pane is read-only. If you use [which-key.nvim](https://github.com/folke/which-key.nvim), `setup()` disables which-key on the `clipring` and `clipring_preview` filetypes.
 
 ### Paste behavior by mode
 
@@ -103,6 +103,10 @@ require("clipring").setup({
   reorder_down_mapping = "<C-j>", -- picker: move entry down in history (false to disable)
   reorder_up_mapping = "<C-k>",   -- picker: move entry up in history (false to disable)
   copy_mapping = "y",             -- picker: copy to system clipboard (false to disable)
+  picker_width = 90,            -- total width of list + preview (columns)
+  list_width = 34,              -- width of the history list
+  picker_max_height = 18,       -- max height of both floats (lines)
+  preview_max_lines = 16,       -- max lines shown per entry in the preview pane
 })
 ```
 
