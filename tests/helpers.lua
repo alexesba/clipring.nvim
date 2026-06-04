@@ -57,4 +57,27 @@ function M.entry(lines, regtype)
   return { lines = lines, regtype = regtype or "v" }
 end
 
+function M.find_clipring_buf()
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_get_name(b):find("clipring://", 1, true) then
+      return b
+    end
+  end
+end
+
+---@param buf number
+---@return number|nil 1-indexed line number of the highlighted entry
+function M.clipring_selected_line(buf)
+  if not buf then
+    return nil
+  end
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  for i, line in ipairs(lines) do
+    if line:match("^▸ ") then
+      return i
+    end
+  end
+  return nil
+end
+
 return M

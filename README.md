@@ -83,7 +83,8 @@ PLENARY_DIR=~/.local/share/nvim/lazy/plenary.nvim ./scripts/run_tests.sh
 Coverage today:
 
 - **ring** — add, dedupe, max size, remove
-- **paste** — visual capture (`v` / `'<`), charwise replace vs append, insert mode
+- **paste** — visual capture (`v` / `'<`), charwise replace vs append, insert-mode paste at saved cursor
+- **ui** — picker normal mode from insert, `j`/`k` navigation, insert restore on close, paste from picker
 - **yank** — `TextYankPost` capture
 
 ## Roadmap
