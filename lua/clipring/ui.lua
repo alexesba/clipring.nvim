@@ -139,6 +139,17 @@ local function select_current()
   paste.apply(entry, mode, marks, opener_win, opener_cursor)
 end
 
+local function copy_current()
+  local all = ring.get_all()
+  if #all == 0 then
+    return
+  end
+  local entry = all[state.index]
+  if entry then
+    paste.copy_to_clipboard(entry)
+  end
+end
+
 local function delete_current()
   local all = ring.get_all()
   if #all == 0 then
@@ -236,6 +247,12 @@ local function attach_keymaps()
   map("<CR>", function()
     select_current()
   end, "ClipRing: paste entry")
+  local copy_key = picker_mapping("copy_mapping", "y")
+  if copy_key then
+    map(copy_key, function()
+      copy_current()
+    end, "ClipRing: copy entry to system clipboard")
+  end
   map("dd", function()
     delete_current()
   end, "ClipRing: delete entry")

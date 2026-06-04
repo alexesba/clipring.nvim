@@ -107,6 +107,30 @@ describe("clipring.ui", function()
     ui.close()
   end)
 
+  it("maps y to copy the selected entry to clipboard registers without closing", function()
+    ui.open()
+    local clip_buf = feed_clipring("j")
+    assert.are.equal(2, h.clipring_selected_line(clip_buf))
+    feed_clipring("y")
+    assert.are.equal("older", vim.fn.getreg('"'))
+    assert.is_true(vim.fn.bufwinid(clip_buf) > 0)
+    ui.close()
+  end)
+
+  it("maps custom copy key from config", function()
+    require("clipring.config").setup({
+      max_entries = 20,
+      deduplicate = true,
+      min_length = 1,
+      persist = false,
+      copy_mapping = "c",
+    })
+    ui.open()
+    feed_clipring("c")
+    assert.are.equal("newer", vim.fn.getreg('"'))
+    ui.close()
+  end)
+
   it("maps Ctrl-j and Ctrl-k to reorder yanks in the ring", function()
     ui.open()
     assert.are.equal("newer", ring.get(1).lines[1])

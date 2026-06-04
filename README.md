@@ -66,6 +66,7 @@ The picker opens as a centered floating window listing recent yanks (newest firs
 | `<Up>` / `<Down>` | Same as `k` / `j` |
 | `<C-j>` / `<C-k>` | Move the **selected entry** down / up in history order (reorder) |
 | `<Enter>` | Paste the selected entry and close |
+| `y` | Copy the selected entry to the system clipboard (`+` / `*`) and keep the picker open |
 | `dd` | Delete the selected entry from history |
 | `q` or `<Esc>` | Close without pasting |
 
@@ -84,7 +85,7 @@ While the picker is focused, `<C-w>` does not switch windows or open which-key (
 1. Yank text as usual (`y`, `yy`, visual yank, etc.).
 2. Open ClipRing (`:ClipRing` or your mapping).
 3. Use `j` / `k` to highlight an entry, optionally `<C-j>` / `<C-k>` to reorder favorites.
-4. Press `<Enter>` to paste, or `q` to cancel.
+4. Press `<Enter>` to paste, `y` to copy to the system clipboard without pasting, or `q` to cancel.
 
 With `persist = true`, history is restored after you restart Neovim (stored under `persist_path`).
 
@@ -101,12 +102,15 @@ require("clipring").setup({
   open_mapping = "<leader>y",  -- string, list of strings, or false (nil = no keymap)
   reorder_down_mapping = "<C-j>", -- picker: move entry down in history (false to disable)
   reorder_up_mapping = "<C-k>",   -- picker: move entry up in history (false to disable)
+  copy_mapping = "y",             -- picker: copy to system clipboard (false to disable)
 })
 ```
 
 **`open_mapping`** — set a string (e.g. `"<leader>y"`) or multiple (`{ "<leader>y", "<M-y>" }`) to open ClipRing from Normal, Visual, and Insert. Leave unset or `nil` to use only `:ClipRing`. Use `false` to clear a keymap after a previous `setup()`.
 
-Omit `reorder_down_mapping` / `reorder_up_mapping` to keep the defaults above. Set either to `false` to turn off that binding.
+Omit `reorder_down_mapping` / `reorder_up_mapping` / `copy_mapping` to keep the defaults above. Set any of them to `false` to turn off that binding.
+
+Copy uses Neovim’s `+` and `*` registers (and the unnamed `"` register). You need clipboard support in Neovim (`:checkhealth clipboard`); on remote SSH, OSC52 or a clipboard provider may be required.
 
 If `<C-j>` / `<C-k>` conflict with global maps (e.g. `:move`), use different keys: `reorder_down_mapping = "<A-j>"`.
 

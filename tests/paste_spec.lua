@@ -150,4 +150,12 @@ describe("clipring.paste", function()
     assert.are_not.equal("hola mundofoo", h.buf_text(buf))
   end)
 
+  it("copy_to_clipboard sets registers with regtype", function()
+    local entry = h.entry({ "one", "two" }, "V")
+    assert.is_true(paste.copy_to_clipboard(entry))
+    -- Unnamed register is always available (headless has no OS clipboard for +).
+    assert.same({ "one", "two" }, vim.fn.getreg('"', 1, 1))
+    assert.are.equal("V", vim.fn.getregtype('"'))
+  end)
+
 end)
