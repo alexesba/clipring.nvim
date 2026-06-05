@@ -2,6 +2,7 @@ local config = require("clipring.config")
 local ring = require("clipring.ring")
 local paste = require("clipring.paste")
 local persist = require("clipring.persist")
+local preview_syntax = require("clipring.preview_syntax")
 
 local M = {}
 
@@ -110,27 +111,61 @@ local function refresh_list_buffer()
   end
 end
 
-local function preview_lines_for_entry(entry)
+---@param entry ClipRingEntry|nil
+---@return string[] lines, string filetype
+local function preview_content_for_entry(entry)
   if not entry or not entry.lines or #entry.lines == 0 then
-    return { "(empty)" }
+    return { "(empty)" }, "clipring_preview"
   end
 
   local opts = config.get()
-  local lines = vim.deepcopy(entry.lines)
+  local content_lines, filetype = preview_syntax.analyze(entry.lines, opts)
   local max_lines = opts.preview_max_lines
-  if max_lines > 0 and #lines > max_lines then
+  if max_lines > 0 and #content_lines > max_lines then
     local truncated = {}
     for i = 1, max_lines do
-      truncated[i] = lines[i]
+      truncated[i] = content_lines[i]
     end
-    table.insert(truncated, string.format("… (%d more lines)", #lines - max_lines))
-    lines = truncated
+    table.insert(truncated, string.format("… (%d more lines)", #content_lines - max_lines))
+    content_lines = truncated
   end
+  return content_lines, filetype
+end
+
+local function preview_lines_for_entry(entry)
+  local content_lines = select(1, preview_content_for_entry(entry))
   local padded = {}
-  for i, line in ipairs(lines) do
+  for i, line in ipairs(content_lines) do
     padded[i] = "  " .. line
   end
   return padded
+end
+
+local function apply_preview_filetype(filetype)
+  if not state.preview_buf or not vim.api.nvim_buf_is_valid(state.preview_buf) then
+    return
+  end
+
+  local buf = state.preview_buf
+  vim.api.nvim_buf_set_option(buf, "modifiable", true)
+  vim.api.nvim_buf_set_option(buf, "filetype", filetype)
+  if filetype == "clipring_preview" then
+    vim.api.nvim_buf_set_option(buf, "syntax", "off")
+    if vim.treesitter and vim.treesitter.stop then
+      pcall(vim.treesitter.stop, buf)
+    end
+  else
+    vim.api.nvim_buf_set_option(buf, "syntax", "on")
+    if vim.treesitter and vim.treesitter.language and vim.treesitter.start then
+      pcall(function()
+        local lang = vim.treesitter.language.get_lang(filetype)
+        if lang then
+          vim.treesitter.start(buf, lang)
+        end
+      end)
+    end
+  end
+  vim.api.nvim_buf_set_option(buf, "modifiable", false)
 end
 
 local function entry_has_preview_content(entry)
@@ -156,7 +191,13 @@ local function refresh_preview_buffer()
   end
 
   local entry = all[state.index]
-  set_buf_lines(state.preview_buf, preview_lines_for_entry(entry))
+  local content_lines, filetype = preview_content_for_entry(entry)
+  local padded = {}
+  for i, line in ipairs(content_lines) do
+    padded[i] = "  " .. line
+  end
+  set_buf_lines(state.preview_buf, padded)
+  apply_preview_filetype(filetype)
 end
 
 local function max_preview_line_width(lines)

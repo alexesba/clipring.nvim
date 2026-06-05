@@ -3,14 +3,21 @@
 [![Tests](https://github.com/alexesba/clipring.nvim/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/alexesba/clipring.nvim/actions/workflows/test.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Minimal yank history for Neovim — a lightweight Lua plugin inspired by YankRing and Windows Clipboard History. No required dependencies.
+Minimal yank history for Neovim — a lightweight Lua plugin inspired by YankRing and Windows Clipboard History. No required dependencies — works with any Neovim setup (LazyVim, packer, plain Lua config). Treesitter and which-key are optional extras, not requirements.
 
 **Repository:** [github.com/alexesba/clipring.nvim](https://github.com/alexesba/clipring.nvim)
+
+## Screenshots
+
+![ClipRing picker with history list and syntax-highlighted preview](doc/screenshots/picker-with-preview.png)
+
+![ClipRing with an empty yank history](doc/screenshots/picker-empty.png)
 
 ## Features
 
 - Automatic capture of every yank
-- Floating popup history (`:ClipRing`) with a multiline preview pane
+- Floating popup history (`:ClipRing`) with an auto-sizing multiline preview pane
+- Preview pane shown only when there is content to display; optional syntax highlighting for code
 - Navigate with `j` / `k`, reorder with `<C-j>` / `<C-k>`, paste with `<Enter>`, copy to the system clipboard with `y`, delete with `dd`
 - Works from Normal, Insert, and Visual modes
 - Optional JSON persistence between sessions
@@ -56,7 +63,7 @@ With a minimal `lazy.nvim` / `packer.nvim` setup, Neovim loads the plugin from `
 | `:ClipRing` | Always available (no keymap required) |
 | Your `open_mapping` | After you set one in `setup()` (e.g. `<leader>y`) |
 
-The picker opens as two side-by-side floats when there are yanks to show: a **history list** (height follows entry count) and a **preview pane** that resizes to fit the selected entry. With an empty ring, only the list is shown.
+The picker opens as two side-by-side floats when there are yanks to show: a **history list** (height follows entry count) and a **preview pane** that resizes to fit the selected entry. Code yanks are syntax-highlighted when ClipRing can detect a language (markdown ` ```lang ` fences, shebangs, or simple heuristics). With an empty ring, only the list is shown.
 
 ### Inside the picker
 
@@ -70,7 +77,7 @@ The picker opens as two side-by-side floats when there are yanks to show: a **hi
 | `dd` | Delete the selected entry from history |
 | `q` or `<Esc>` | Close without pasting |
 
-While the picker is focused, `<C-w>` does not switch windows or open which-key (close the picker first, like Telescope). Keys apply to the history list; the preview pane is read-only. If you use [which-key.nvim](https://github.com/folke/which-key.nvim), `setup()` disables which-key on the `clipring` and `clipring_preview` filetypes.
+While the picker is focused, `<C-w>` does not switch windows or open which-key (close the picker first, like Telescope). Keys apply to the history list; the preview pane is read-only. If you use [which-key.nvim](https://github.com/folke/which-key.nvim), `setup()` disables which-key on the history list buffer (`clipring` filetype).
 
 ### Paste behavior by mode
 
@@ -109,6 +116,7 @@ require("clipring").setup({
   picker_width = 80,        -- total inner width; 0 = nearly full editor width
   picker_max_height = 18,   -- max height for list and preview
   preview_max_lines = 16,   -- max lines per entry in the preview pane
+  preview_syntax = true,    -- highlight code in the preview when a language is detected
 })
 ```
 
@@ -119,6 +127,8 @@ Omit `reorder_down_mapping` / `reorder_up_mapping` / `copy_mapping` to keep the 
 Copy uses Neovim’s `+` and `*` registers (and the unnamed `"` register). You need clipboard support in Neovim (`:checkhealth clipboard`); on remote SSH, OSC52 or a clipboard provider may be required.
 
 If `<C-j>` / `<C-k>` conflict with global maps (e.g. `:move`), use different keys: `reorder_down_mapping = "<A-j>"`.
+
+**Preview syntax** — when `preview_syntax` is true (default), ClipRing detects a language from markdown ` ```lang ` fences, shebangs, Neovim’s filetype match, or simple heuristics, then highlights with built-in Vim syntax. If Treesitter parsers are installed, highlighting may look better; set `preview_syntax = false` for plain text only. Fence markers are stripped from the preview — only the code body is shown.
 
 ### Advanced
 
@@ -149,11 +159,14 @@ Set `PLENARY_DIR` if plenary is already on disk:
 PLENARY_DIR=~/.local/share/nvim/lazy/plenary.nvim ./scripts/run_tests.sh
 ```
 
+To regenerate README screenshots, see [doc/screenshots/README.md](doc/screenshots/README.md).
+
 Coverage today:
 
 - **ring** — add, dedupe, max size, remove, reorder
+- **preview_syntax** — fence stripping, language detection, heuristics
 - **paste** — visual capture (`v` / `'<`), charwise replace vs append, insert-mode paste at saved cursor
-- **ui** — picker from insert, navigation, reorder keys, multiline preview, clipboard copy, which-key / `<C-w>` behavior
+- **ui** — picker from insert, navigation, reorder keys, auto-size layout, conditional preview, multiline preview, syntax highlighting, clipboard copy, which-key / `<C-w>` behavior
 - **yank** — `TextYankPost` capture
 - **setup** — `open_mapping` registration
 
