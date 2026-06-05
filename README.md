@@ -159,11 +159,7 @@ Set `PLENARY_DIR` if plenary is already on disk:
 PLENARY_DIR=~/.local/share/nvim/lazy/plenary.nvim ./scripts/run_tests.sh
 ```
 
-To regenerate README screenshots locally:
-
-```bash
-./scripts/capture_screenshots.sh
-```
+To regenerate README screenshots, see [doc/screenshots/README.md](doc/screenshots/README.md).
 
 Coverage today:
 

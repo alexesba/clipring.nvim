@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
-# Capture README screenshots interactively (run in your own terminal, not Cursor agent).
-#
-# Uses `nvim --clean` so your personal config does not override the demo yanks.
-# Requires macOS Screen Recording permission for Terminal / WezTerm.
+# Maintainer helper: capture README screenshots (macOS + WezTerm).
+# Run from your own terminal — not from Cursor's agent shell.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="$ROOT/doc/screenshots"
-mkdir -p "$OUT"
+DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$DIR/../.." && pwd)"
 
 NVIM_OPTS=(
   --clean
@@ -35,17 +32,17 @@ capture_interactive() {
 
 case "${1:-all}" in
   full|with-preview|preview)
-    capture_interactive "$ROOT/scripts/demo_screenshot.lua" "$OUT/picker-with-preview.png" \
+    capture_interactive "$DIR/demo.lua" "$DIR/picker-with-preview.png" \
       "Picker with history list + syntax-highlighted preview" 3.5
     ;;
   empty)
-    capture_interactive "$ROOT/scripts/demo_screenshot_empty.lua" "$OUT/picker-empty.png" \
+    capture_interactive "$DIR/demo_empty.lua" "$DIR/picker-empty.png" \
       "Empty ring (list only, no preview pane)" 3
     ;;
   all)
-    capture_interactive "$ROOT/scripts/demo_screenshot.lua" "$OUT/picker-with-preview.png" \
+    capture_interactive "$DIR/demo.lua" "$DIR/picker-with-preview.png" \
       "Picker with history list + syntax-highlighted preview" 3.5
-    capture_interactive "$ROOT/scripts/demo_screenshot_empty.lua" "$OUT/picker-empty.png" \
+    capture_interactive "$DIR/demo_empty.lua" "$DIR/picker-empty.png" \
       "Empty ring (list only, no preview pane)" 3
     ;;
   *)
@@ -55,4 +52,4 @@ case "${1:-all}" in
 esac
 
 echo ""
-echo "Done. Screenshots in $OUT"
+echo "Done. Screenshots in $DIR"

@@ -1,5 +1,5 @@
 --- Demo buffer + yank history for README screenshots.
---- Usage: nvim --cmd "set rtp+=..." --cmd "luafile scripts/demo_screenshot.lua"
+--- Usage: nvim --clean --cmd "cd <repo>" --cmd "luafile doc/screenshots/demo.lua"
 
 local root = vim.fn.fnamemodify(vim.fn.getcwd(), ":p"):gsub("/$", "")
 
