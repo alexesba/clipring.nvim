@@ -28,6 +28,23 @@ local PREVIEW_MIN_WIDTH = 20
 local PREVIEW_MIN_HEIGHT = 3
 local LIST_MIN_HEIGHT = 3
 
+local float_opts = {
+  relative = "editor",
+  style = "minimal",
+  border = "rounded",
+}
+
+local function configure_float_win(win)
+  if not vim.api.nvim_win_is_valid(win) then
+    return
+  end
+  vim.wo[win].winhl = "Normal:NormalFloat,FloatBorder:FloatBorder,CursorLine:Visual"
+  vim.wo[win].number = false
+  vim.wo[win].relativenumber = false
+  vim.wo[win].signcolumn = "no"
+  vim.wo[win].foldcolumn = "0"
+end
+
 local function entry_kind(entry)
   if entry.regtype == "V" then
     return "l"
@@ -116,6 +133,17 @@ local function preview_lines_for_entry(entry)
   return padded
 end
 
+local function entry_has_preview_content(entry)
+  if not entry or not entry.lines or #entry.lines == 0 then
+    return false
+  end
+  return not table.concat(entry.lines, "\n"):match("^%s*$")
+end
+
+local function preview_should_show()
+  return ring.count() > 0 and entry_has_preview_content(ring.get(state.index))
+end
+
 local function refresh_preview_buffer()
   if not state.preview_buf or not vim.api.nvim_buf_is_valid(state.preview_buf) then
     return
@@ -178,8 +206,9 @@ local function list_height_for_count(count)
   return math.min(height, opts.picker_max_height, vim.o.lines - 4)
 end
 
---- Fixed list pane layout (width/position on open; height also updated via apply_list_height).
-local function list_layout(initial_preview_width)
+---@param initial_preview_width number|nil
+---@param with_preview boolean
+local function list_layout(initial_preview_width, with_preview)
   local opts = config.get()
   local count = ring.count()
   local height = list_height_for_count(count)
@@ -189,21 +218,30 @@ local function list_layout(initial_preview_width)
   total_width = math.min(total_width, vim.o.columns - margin)
   total_width = math.max(total_width, 60)
 
-  local preview_cap = opts.preview_max_width and opts.preview_max_width > 0 and opts.preview_max_width
-    or (initial_preview_width or PREVIEW_MIN_WIDTH)
-  preview_cap = math.max(PREVIEW_MIN_WIDTH, preview_cap)
-  preview_cap = math.min(preview_cap, total_width - 36)
-
   local list_width
-  if opts.list_width > 0 then
-    list_width = math.min(opts.list_width, total_width - preview_cap)
-  else
-    list_width = total_width - preview_cap
-  end
-  list_width = math.max(list_width, 36)
+  local footprint
 
-  local preview_w = initial_preview_width or preview_cap
-  local footprint = (list_width + 2) + state.float_gap + (preview_w + 2)
+  if not with_preview then
+    list_width = total_width
+    list_width = math.max(list_width, 36)
+    footprint = list_width + 2
+  else
+    local preview_cap = opts.preview_max_width and opts.preview_max_width > 0 and opts.preview_max_width
+      or (initial_preview_width or PREVIEW_MIN_WIDTH)
+    preview_cap = math.max(PREVIEW_MIN_WIDTH, preview_cap)
+    preview_cap = math.min(preview_cap, total_width - 36)
+
+    if opts.list_width > 0 then
+      list_width = math.min(opts.list_width, total_width - preview_cap)
+    else
+      list_width = total_width - preview_cap
+    end
+    list_width = math.max(list_width, 36)
+
+    local preview_w = initial_preview_width or preview_cap
+    footprint = (list_width + 2) + state.float_gap + (preview_w + 2)
+  end
+
   local row = math.max(0, math.floor((vim.o.lines - height) / 2))
   local col = math.max(0, math.floor((vim.o.columns - footprint) / 2))
 
@@ -278,11 +316,51 @@ local function apply_list_layout(layout)
   })
 end
 
+local function hide_preview_window()
+  if state.preview_win and vim.api.nvim_win_is_valid(state.preview_win) then
+    vim.api.nvim_win_close(state.preview_win, true)
+  end
+  state.preview_win = nil
+end
+
+local function show_preview_window()
+  if not state.preview_buf or not vim.api.nvim_buf_is_valid(state.preview_buf) then
+    return
+  end
+  refresh_preview_buffer()
+  local entry = ring.get(state.index)
+  local pw, ph = preview_size_for_entry(entry)
+  pw = clamp_preview_width(pw)
+
+  if not state.preview_win or not vim.api.nvim_win_is_valid(state.preview_win) then
+    state.preview_win = vim.api.nvim_open_win(state.preview_buf, false, vim.tbl_extend("force", float_opts, {
+      width = pw,
+      height = ph,
+      row = state.list_row,
+      col = state.list_col + state.list_width + 2 + state.float_gap,
+    }))
+    configure_float_win(state.preview_win)
+  else
+    apply_preview_layout()
+  end
+end
+
+local function sync_preview_visibility()
+  local show = preview_should_show()
+  local entry = ring.get(state.index)
+  local initial_pw = show and preview_size_for_entry(entry) or nil
+  apply_list_layout(list_layout(initial_pw, show))
+  if show then
+    show_preview_window()
+  else
+    hide_preview_window()
+  end
+end
+
 local function refresh_buffers()
   refresh_list_buffer()
   apply_list_height()
-  refresh_preview_buffer()
-  apply_preview_layout()
+  sync_preview_visibility()
 end
 
 local NAV_MODES = { "n", "i", "v", "x", "s" }
@@ -508,23 +586,6 @@ local function create_readonly_buf(name, filetype)
   return buf
 end
 
-local float_opts = {
-  relative = "editor",
-  style = "minimal",
-  border = "rounded",
-}
-
-local function configure_float_win(win)
-  if not vim.api.nvim_win_is_valid(win) then
-    return
-  end
-  vim.wo[win].winhl = "Normal:NormalFloat,FloatBorder:FloatBorder,CursorLine:Visual"
-  vim.wo[win].number = false
-  vim.wo[win].relativenumber = false
-  vim.wo[win].signcolumn = "no"
-  vim.wo[win].foldcolumn = "0"
-end
-
 ---@param opts table|nil
 ---@field from_insert boolean|nil set when the open keymap runs in Insert mode
 function M.open(opts)
@@ -552,9 +613,10 @@ function M.open(opts)
   state.list_buf = create_readonly_buf("clipring://history", "clipring")
   state.preview_buf = create_readonly_buf("clipring://preview", "clipring_preview")
 
-  local entry = ring.count() > 0 and ring.get(state.index) or nil
-  local initial_pw = preview_size_for_entry(entry)
-  local layout = list_layout(initial_pw)
+  local show_preview = preview_should_show()
+  local entry = show_preview and ring.get(state.index) or nil
+  local initial_pw = show_preview and preview_size_for_entry(entry) or nil
+  local layout = list_layout(initial_pw, show_preview)
   set_list_layout_state(layout)
 
   state.list_win = vim.api.nvim_open_win(state.list_buf, true, vim.tbl_extend("force", float_opts, {
@@ -566,17 +628,19 @@ function M.open(opts)
     title_pos = "center",
   }))
 
-  local pw, ph = preview_size_for_entry(entry)
-  pw = clamp_preview_width(pw)
-  state.preview_win = vim.api.nvim_open_win(state.preview_buf, false, vim.tbl_extend("force", float_opts, {
-    width = pw,
-    height = ph,
-    row = state.list_row,
-    col = state.list_col + state.list_width + 2 + state.float_gap,
-  }))
-
   configure_float_win(state.list_win)
-  configure_float_win(state.preview_win)
+
+  if show_preview then
+    local pw, ph = preview_size_for_entry(entry)
+    pw = clamp_preview_width(pw)
+    state.preview_win = vim.api.nvim_open_win(state.preview_buf, false, vim.tbl_extend("force", float_opts, {
+      width = pw,
+      height = ph,
+      row = state.list_row,
+      col = state.list_col + state.list_width + 2 + state.float_gap,
+    }))
+    configure_float_win(state.preview_win)
+  end
 
   attach_keymaps()
   refresh_buffers()

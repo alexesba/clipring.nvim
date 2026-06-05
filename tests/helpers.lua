@@ -73,6 +73,19 @@ function M.find_clipring_preview_buf()
   end
 end
 
+---@return number|nil window id when the preview float is visible
+function M.clipring_preview_win()
+  local buf = M.find_clipring_preview_buf()
+  if not buf then
+    return nil
+  end
+  local win = vim.fn.bufwinid(buf)
+  if win <= 0 then
+    return nil
+  end
+  return win
+end
+
 ---@param buf number
 ---@return number|nil 1-indexed line number of the highlighted entry
 function M.clipring_selected_line(buf)

@@ -56,7 +56,7 @@ With a minimal `lazy.nvim` / `packer.nvim` setup, Neovim loads the plugin from `
 | `:ClipRing` | Always available (no keymap required) |
 | Your `open_mapping` | After you set one in `setup()` (e.g. `<leader>y`) |
 
-The picker opens as two side-by-side floats: a **history list** (height follows entry count) and a **preview pane** that resizes to fit the selected yank’s line count and longest line (capped by `preview_max_lines`, `preview_max_width`, and `picker_max_height`).
+The picker opens as two side-by-side floats when there are yanks to show: a **history list** (height follows entry count) and a **preview pane** that resizes to fit the selected entry. With an empty ring, only the list is shown.
 
 ### Inside the picker
 
