@@ -5,6 +5,7 @@ local root = vim.fn.fnamemodify(vim.fn.getcwd(), ":p"):gsub("/$", "")
 vim.opt.rtp:prepend(root)
 vim.opt.termguicolors = true
 vim.opt.number = true
+vim.opt.swapfile = false
 vim.cmd("colorscheme default")
 
 vim.api.nvim_buf_set_lines(0, 0, -1, true, {
@@ -13,9 +14,8 @@ vim.api.nvim_buf_set_lines(0, 0, -1, true, {
 })
 vim.bo.filetype = "lua"
 
-require("clipring").setup({ open_mapping = nil })
-require("clipring.ring").clear()
+require("clipring").setup({ open_mapping = nil, persist = false })
 
 vim.defer_fn(function()
   require("clipring.ui").open()
-end, 250)
+end, 500)

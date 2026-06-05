@@ -20,4 +20,4 @@ case "$MODE" in
 esac
 
 exec wezterm start --always-new-process --position 160,90 -- \
-  nvim --cmd "set columns=100 lines=30" --cmd "cd $ROOT" --cmd "luafile $DEMO"
+  nvim --clean --cmd "set columns=100 lines=32" --cmd "cd $ROOT" --cmd "luafile $DEMO"
