@@ -56,7 +56,7 @@ With a minimal `lazy.nvim` / `packer.nvim` setup, Neovim loads the plugin from `
 | `:ClipRing` | Always available (no keymap required) |
 | Your `open_mapping` | After you set one in `setup()` (e.g. `<leader>y`) |
 
-The picker opens as two side-by-side floats: a wide **history list** (newest first, one line per entry with register type `c` / `l` / `b`) and a narrower **preview pane** showing the selected yank with real line breaks (up to `preview_max_lines`).
+The picker opens as two side-by-side floats when there are yanks to show: a **history list** (height follows entry count) and a **preview pane** that resizes to fit the selected entry. With an empty ring, only the list is shown.
 
 ### Inside the picker
 
@@ -93,21 +93,22 @@ With `persist = true`, history is restored after you restart Neovim (stored unde
 
 ```lua
 require("clipring").setup({
-  max_entries = 100,       -- max items in ring
-  persist = false,           -- save history to disk
+  -- Ring
+  max_entries = 100,
+  persist = false,
   persist_path = vim.fn.stdpath("data") .. "/clipring/history.json",
-  preview_length = 80,       -- chars shown per line in popup
-  deduplicate = true,        -- move duplicates to top instead of re-adding
-  min_length = 1,            -- ignore yanks shorter than this (chars)
-  open_mapping = "<leader>y",  -- string, list of strings, or false (nil = no keymap)
-  reorder_down_mapping = "<C-j>", -- picker: move entry down in history (false to disable)
-  reorder_up_mapping = "<C-k>",   -- picker: move entry up in history (false to disable)
-  copy_mapping = "y",             -- picker: copy to system clipboard (false to disable)
-  picker_width = 80,            -- total inner width of list + preview (0 = editor width minus margin)
-  list_width = 0,               -- history list columns (0 = remaining width after preview)
-  preview_max_width = 80,       -- max width of the preview pane (columns)
-  picker_max_height = 18,       -- max height of both floats (lines)
-  preview_max_lines = 16,       -- max lines shown per entry in the preview pane
+  deduplicate = true,
+
+  -- Open & picker keys
+  open_mapping = "<leader>y",
+  reorder_down_mapping = "<C-j>",
+  reorder_up_mapping = "<C-k>",
+  copy_mapping = "y",
+
+  -- Layout (list and preview auto-size within these limits)
+  picker_width = 80,        -- total inner width; 0 = nearly full editor width
+  picker_max_height = 18,   -- max height for list and preview
+  preview_max_lines = 16,   -- max lines per entry in the preview pane
 })
 ```
 
@@ -118,6 +119,17 @@ Omit `reorder_down_mapping` / `reorder_up_mapping` / `copy_mapping` to keep the 
 Copy uses Neovim’s `+` and `*` registers (and the unnamed `"` register). You need clipboard support in Neovim (`:checkhealth clipboard`); on remote SSH, OSC52 or a clipboard provider may be required.
 
 If `<C-j>` / `<C-k>` conflict with global maps (e.g. `:move`), use different keys: `reorder_down_mapping = "<A-j>"`.
+
+### Advanced
+
+```lua
+require("clipring").setup({
+  min_length = 1,             -- ignore yanks shorter than this (chars)
+  preview_length = 80,        -- max chars in each one-line list label
+  preview_max_width = 120,    -- cap preview width; 0 = up to screen edge (default)
+  list_width = 0,             -- fixed list width in columns; 0 = auto (recommended)
+})
+```
 
 ## Tests
 
