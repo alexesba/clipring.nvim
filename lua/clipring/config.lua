@@ -16,6 +16,7 @@ local M = {}
 ---@field preview_max_width number max preview width (`0` = content width up to screen edge)
 ---@field picker_max_height number max height of list and preview panes (lines)
 ---@field preview_max_lines number max lines shown in the preview pane for one entry
+---@field preview_syntax boolean highlight preview when a code filetype is detected
 
 M.defaults = {
   max_entries = 100,
@@ -33,6 +34,7 @@ M.defaults = {
   preview_max_width = 0,
   picker_max_height = 18,
   preview_max_lines = 16,
+  preview_syntax = true,
 }
 
 ---@type ClipRingConfig

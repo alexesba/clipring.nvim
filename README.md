@@ -10,7 +10,7 @@ Minimal yank history for Neovim — a lightweight Lua plugin inspired by YankRin
 ## Features
 
 - Automatic capture of every yank
-- Floating popup history (`:ClipRing`) with a multiline preview pane
+- Floating popup history (`:ClipRing`) with a multiline preview pane and optional syntax highlighting for code
 - Navigate with `j` / `k`, reorder with `<C-j>` / `<C-k>`, paste with `<Enter>`, copy to the system clipboard with `y`, delete with `dd`
 - Works from Normal, Insert, and Visual modes
 - Optional JSON persistence between sessions
@@ -56,7 +56,7 @@ With a minimal `lazy.nvim` / `packer.nvim` setup, Neovim loads the plugin from `
 | `:ClipRing` | Always available (no keymap required) |
 | Your `open_mapping` | After you set one in `setup()` (e.g. `<leader>y`) |
 
-The picker opens as two side-by-side floats when there are yanks to show: a **history list** (height follows entry count) and a **preview pane** that resizes to fit the selected entry. With an empty ring, only the list is shown.
+The picker opens as two side-by-side floats when there are yanks to show: a **history list** (height follows entry count) and a **preview pane** that resizes to fit the selected entry. Code yanks are syntax-highlighted when ClipRing can detect a language (markdown ` ```lang ` fences, shebangs, or simple heuristics). With an empty ring, only the list is shown.
 
 ### Inside the picker
 
@@ -109,6 +109,7 @@ require("clipring").setup({
   picker_width = 80,        -- total inner width; 0 = nearly full editor width
   picker_max_height = 18,   -- max height for list and preview
   preview_max_lines = 16,   -- max lines per entry in the preview pane
+  preview_syntax = true,    -- highlight code in the preview when a language is detected
 })
 ```
 
@@ -152,14 +153,17 @@ PLENARY_DIR=~/.local/share/nvim/lazy/plenary.nvim ./scripts/run_tests.sh
 Coverage today:
 
 - **ring** — add, dedupe, max size, remove, reorder
+- **preview_syntax** — fence stripping, language detection, heuristics
 - **paste** — visual capture (`v` / `'<`), charwise replace vs append, insert-mode paste at saved cursor
-- **ui** — picker from insert, navigation, reorder keys, multiline preview, clipboard copy, which-key / `<C-w>` behavior
+- **ui** — picker from insert, navigation, reorder keys, multiline preview, syntax highlighting, clipboard copy, which-key / `<C-w>` behavior
 - **yank** — `TextYankPost` capture
 - **setup** — `open_mapping` registration
 
 ## Roadmap
 
 Possible future work: Telescope picker, bulk delete.
+
+Preview highlighting uses built-in Vim syntax (and Treesitter when available). Set `preview_syntax = false` to show plain text only.
 
 ## License
 

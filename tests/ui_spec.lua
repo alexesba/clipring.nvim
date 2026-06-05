@@ -97,6 +97,22 @@ describe("clipring.ui", function()
     ui.close()
   end)
 
+  it("sets ruby filetype for fenced code blocks in the preview pane", function()
+    ring.clear()
+    ring.add({
+      "```ruby",
+      "def foo",
+      "  1",
+      "end",
+      "```",
+    }, "V")
+    ui.open()
+    local preview_buf = h.find_clipring_preview_buf()
+    assert.are.equal("ruby", vim.api.nvim_buf_get_option(preview_buf, "filetype"))
+    assert.same({ "  def foo", "    1", "  end" }, vim.api.nvim_buf_get_lines(preview_buf, 0, -1, false))
+    ui.close()
+  end)
+
   it("shows multiline yank content in the preview pane", function()
     ring.clear()
     ring.add({ "alpha", "beta", "gamma" }, "V")
