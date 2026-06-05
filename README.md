@@ -7,6 +7,12 @@ Minimal yank history for Neovim — a lightweight Lua plugin inspired by YankRin
 
 **Repository:** [github.com/alexesba/clipring.nvim](https://github.com/alexesba/clipring.nvim)
 
+## Screenshots
+
+![ClipRing picker with history list and syntax-highlighted preview](doc/screenshots/picker-with-preview.png)
+
+![ClipRing with an empty yank history](doc/screenshots/picker-empty.png)
+
 ## Features
 
 - Automatic capture of every yank
@@ -151,6 +157,12 @@ Set `PLENARY_DIR` if plenary is already on disk:
 
 ```bash
 PLENARY_DIR=~/.local/share/nvim/lazy/plenary.nvim ./scripts/run_tests.sh
+```
+
+To regenerate README screenshots locally:
+
+```bash
+./scripts/capture_screenshots.sh
 ```
 
 Coverage today:
