@@ -16,9 +16,17 @@ local state = {
   visual_marks = nil,
   index = 1,
   list_col_width = 50,
+  list_col = 0,
+  list_row = 0,
+  list_height = 3,
+  float_gap = 1,
 }
 
 local ns = vim.api.nvim_create_namespace("ClipRing")
+
+local PREVIEW_MIN_WIDTH = 20
+local PREVIEW_MIN_HEIGHT = 3
+local LIST_MIN_HEIGHT = 3
 
 local function entry_kind(entry)
   if entry.regtype == "V" then
@@ -123,9 +131,158 @@ local function refresh_preview_buffer()
   set_buf_lines(state.preview_buf, preview_lines_for_entry(entry))
 end
 
+local function max_preview_line_width(lines)
+  local max_w = 0
+  for _, line in ipairs(lines) do
+    max_w = math.max(max_w, vim.fn.strdisplaywidth(line))
+  end
+  return max_w
+end
+
+---@param entry ClipRingEntry|nil
+---@return number width, number height
+local function preview_size_for_entry(entry)
+  local opts = config.get()
+  local lines = entry and preview_lines_for_entry(entry) or { "" }
+  local line_count = #lines
+  local max_line_w = max_preview_line_width(lines)
+
+  local width = math.max(PREVIEW_MIN_WIDTH, max_line_w + 1)
+  if opts.preview_max_width and opts.preview_max_width > 0 then
+    width = math.min(width, opts.preview_max_width)
+  end
+
+  local height = math.max(PREVIEW_MIN_HEIGHT, line_count)
+  height = math.min(height, opts.picker_max_height, vim.o.lines - 4)
+  if state.list_row and state.list_row > 0 then
+    height = math.min(height, vim.o.lines - state.list_row - 2)
+  end
+
+  return width, height
+end
+
+local function clamp_preview_width(width)
+  if not state.list_col or not state.list_width then
+    return width
+  end
+  local preview_col = state.list_col + state.list_width + 2 + state.float_gap
+  local max_on_screen = vim.o.columns - preview_col - 4
+  return math.max(PREVIEW_MIN_WIDTH, math.min(width, max_on_screen))
+end
+
+--- Height of the history list from entry count.
+local function list_height_for_count(count)
+  local opts = config.get()
+  local list_lines = count > 0 and count or 3
+  local height = math.max(list_lines, LIST_MIN_HEIGHT)
+  return math.min(height, opts.picker_max_height, vim.o.lines - 4)
+end
+
+--- Fixed list pane layout (width/position on open; height also updated via apply_list_height).
+local function list_layout(initial_preview_width)
+  local opts = config.get()
+  local count = ring.count()
+  local height = list_height_for_count(count)
+
+  local margin = 8
+  local total_width = opts.picker_width > 0 and opts.picker_width or (vim.o.columns - margin)
+  total_width = math.min(total_width, vim.o.columns - margin)
+  total_width = math.max(total_width, 60)
+
+  local preview_cap = opts.preview_max_width and opts.preview_max_width > 0 and opts.preview_max_width
+    or (initial_preview_width or PREVIEW_MIN_WIDTH)
+  preview_cap = math.max(PREVIEW_MIN_WIDTH, preview_cap)
+  preview_cap = math.min(preview_cap, total_width - 36)
+
+  local list_width
+  if opts.list_width > 0 then
+    list_width = math.min(opts.list_width, total_width - preview_cap)
+  else
+    list_width = total_width - preview_cap
+  end
+  list_width = math.max(list_width, 36)
+
+  local preview_w = initial_preview_width or preview_cap
+  local footprint = (list_width + 2) + state.float_gap + (preview_w + 2)
+  local row = math.max(0, math.floor((vim.o.lines - height) / 2))
+  local col = math.max(0, math.floor((vim.o.columns - footprint) / 2))
+
+  return {
+    row = row,
+    col = col,
+    height = height,
+    list_width = list_width,
+  }
+end
+
+local function apply_list_height()
+  if not state.list_win or not vim.api.nvim_win_is_valid(state.list_win) then
+    return
+  end
+  local height = list_height_for_count(ring.count())
+  if height == state.list_height then
+    return
+  end
+  state.list_height = height
+  vim.api.nvim_win_set_config(state.list_win, {
+    relative = "editor",
+    width = state.list_width,
+    height = height,
+    row = state.list_row,
+    col = state.list_col,
+  })
+end
+
+local function apply_preview_layout()
+  if not state.preview_win or not vim.api.nvim_win_is_valid(state.preview_win) then
+    return
+  end
+
+  local entry = ring.get(state.index)
+  local width, height
+  if entry then
+    width, height = preview_size_for_entry(entry)
+  else
+    width, height = PREVIEW_MIN_WIDTH, PREVIEW_MIN_HEIGHT
+  end
+  width = clamp_preview_width(width)
+
+  vim.api.nvim_win_set_config(state.preview_win, {
+    relative = "editor",
+    width = width,
+    height = height,
+    row = state.list_row,
+    col = state.list_col + state.list_width + 2 + state.float_gap,
+  })
+end
+
+local function set_list_layout_state(layout)
+  state.list_col_width = layout.list_width
+  state.list_width = layout.list_width
+  state.list_col = layout.col
+  state.list_row = layout.row
+  state.list_height = layout.height
+end
+
+local function apply_list_layout(layout)
+  set_list_layout_state(layout)
+  if not state.list_win or not vim.api.nvim_win_is_valid(state.list_win) then
+    return
+  end
+  vim.api.nvim_win_set_config(state.list_win, {
+    relative = "editor",
+    width = layout.list_width,
+    height = layout.height,
+    row = layout.row,
+    col = layout.col,
+  })
+end
+
 local function refresh_buffers()
   refresh_list_buffer()
+  apply_list_height()
   refresh_preview_buffer()
+  apply_preview_layout()
 end
 
 local NAV_MODES = { "n", "i", "v", "x", "s" }
@@ -351,72 +508,6 @@ local function create_readonly_buf(name, filetype)
   return buf
 end
 
-local function picker_layout()
-  local opts = config.get()
-  local count = ring.count()
-  local list_lines = count > 0 and count or 3
-  local entry = count > 0 and ring.get(state.index) or nil
-  local preview_lines = entry and #preview_lines_for_entry(entry) or 1
-
-  local height = math.max(list_lines, preview_lines, 3)
-  height = math.min(height, opts.picker_max_height, vim.o.lines - 4)
-
-  local margin = 8
-  local total_width = opts.picker_width > 0 and opts.picker_width or (vim.o.columns - margin)
-  total_width = math.min(total_width, vim.o.columns - margin)
-  total_width = math.max(total_width, 60)
-
-  local preview_cap = math.max(20, opts.preview_max_width or 80)
-  preview_cap = math.min(preview_cap, total_width - 36)
-
-  local preview_width = preview_cap
-  local list_width
-  if opts.list_width > 0 then
-    list_width = math.min(opts.list_width, total_width - preview_width)
-  else
-    list_width = total_width - preview_width
-  end
-  list_width = math.max(list_width, 36)
-
-  local float_gap = 1
-  local footprint = (list_width + 2) + float_gap + (preview_width + 2)
-  local row = math.max(0, math.floor((vim.o.lines - height) / 2))
-  local col = math.max(0, math.floor((vim.o.columns - footprint) / 2))
-
-  return {
-    row = row,
-    col = col,
-    height = height,
-    list_width = list_width,
-    preview_width = preview_width,
-    preview_col = col + list_width + 2 + float_gap,
-    float_gap = float_gap,
-  }
-end
-
-local function apply_picker_layout(layout)
-  if not state.list_win or not vim.api.nvim_win_is_valid(state.list_win) then
-    return
-  end
-  state.list_col_width = layout.list_width
-  vim.api.nvim_win_set_config(state.list_win, {
-    relative = "editor",
-    width = layout.list_width,
-    height = layout.height,
-    row = layout.row,
-    col = layout.col,
-  })
-  if state.preview_win and vim.api.nvim_win_is_valid(state.preview_win) then
-    vim.api.nvim_win_set_config(state.preview_win, {
-      relative = "editor",
-      width = layout.preview_width,
-      height = layout.height,
-      row = layout.row,
-      col = layout.preview_col,
-    })
-  end
-end
-
 local float_opts = {
   relative = "editor",
   style = "minimal",
@@ -440,7 +531,6 @@ function M.open(opts)
   opts = opts or {}
 
   if state.list_win and vim.api.nvim_win_is_valid(state.list_win) then
-    apply_picker_layout(picker_layout())
     refresh_buffers()
     focus_list_normal()
     return
@@ -462,8 +552,10 @@ function M.open(opts)
   state.list_buf = create_readonly_buf("clipring://history", "clipring")
   state.preview_buf = create_readonly_buf("clipring://preview", "clipring_preview")
 
-  local layout = picker_layout()
-  state.list_col_width = layout.list_width
+  local entry = ring.count() > 0 and ring.get(state.index) or nil
+  local initial_pw = preview_size_for_entry(entry)
+  local layout = list_layout(initial_pw)
+  set_list_layout_state(layout)
 
   state.list_win = vim.api.nvim_open_win(state.list_buf, true, vim.tbl_extend("force", float_opts, {
     width = layout.list_width,
@@ -474,11 +566,13 @@ function M.open(opts)
     title_pos = "center",
   }))
 
+  local pw, ph = preview_size_for_entry(entry)
+  pw = clamp_preview_width(pw)
   state.preview_win = vim.api.nvim_open_win(state.preview_buf, false, vim.tbl_extend("force", float_opts, {
-    width = layout.preview_width,
-    height = layout.height,
-    row = layout.row,
-    col = layout.preview_col,
+    width = pw,
+    height = ph,
+    row = state.list_row,
+    col = state.list_col + state.list_width + 2 + state.float_gap,
   }))
 
   configure_float_win(state.list_win)
