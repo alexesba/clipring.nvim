@@ -3,14 +3,15 @@
 [![Tests](https://github.com/alexesba/clipring.nvim/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/alexesba/clipring.nvim/actions/workflows/test.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Minimal yank history for Neovim — a lightweight Lua plugin inspired by YankRing and Windows Clipboard History. No required dependencies.
+Minimal yank history for Neovim — a lightweight Lua plugin inspired by YankRing and Windows Clipboard History. No required dependencies — works with any Neovim setup (LazyVim, packer, plain Lua config). Treesitter and which-key are optional extras, not requirements.
 
 **Repository:** [github.com/alexesba/clipring.nvim](https://github.com/alexesba/clipring.nvim)
 
 ## Features
 
 - Automatic capture of every yank
-- Floating popup history (`:ClipRing`) with a multiline preview pane and optional syntax highlighting for code
+- Floating popup history (`:ClipRing`) with an auto-sizing multiline preview pane
+- Preview pane shown only when there is content to display; optional syntax highlighting for code
 - Navigate with `j` / `k`, reorder with `<C-j>` / `<C-k>`, paste with `<Enter>`, copy to the system clipboard with `y`, delete with `dd`
 - Works from Normal, Insert, and Visual modes
 - Optional JSON persistence between sessions
@@ -70,7 +71,7 @@ The picker opens as two side-by-side floats when there are yanks to show: a **hi
 | `dd` | Delete the selected entry from history |
 | `q` or `<Esc>` | Close without pasting |
 
-While the picker is focused, `<C-w>` does not switch windows or open which-key (close the picker first, like Telescope). Keys apply to the history list; the preview pane is read-only. If you use [which-key.nvim](https://github.com/folke/which-key.nvim), `setup()` disables which-key on the `clipring` and `clipring_preview` filetypes.
+While the picker is focused, `<C-w>` does not switch windows or open which-key (close the picker first, like Telescope). Keys apply to the history list; the preview pane is read-only. If you use [which-key.nvim](https://github.com/folke/which-key.nvim), `setup()` disables which-key on the history list buffer (`clipring` filetype).
 
 ### Paste behavior by mode
 
@@ -121,6 +122,8 @@ Copy uses Neovim’s `+` and `*` registers (and the unnamed `"` register). You n
 
 If `<C-j>` / `<C-k>` conflict with global maps (e.g. `:move`), use different keys: `reorder_down_mapping = "<A-j>"`.
 
+**Preview syntax** — when `preview_syntax` is true (default), ClipRing detects a language from markdown ` ```lang ` fences, shebangs, Neovim’s filetype match, or simple heuristics, then highlights with built-in Vim syntax. If Treesitter parsers are installed, highlighting may look better; set `preview_syntax = false` for plain text only. Fence markers are stripped from the preview — only the code body is shown.
+
 ### Advanced
 
 ```lua
@@ -155,15 +158,13 @@ Coverage today:
 - **ring** — add, dedupe, max size, remove, reorder
 - **preview_syntax** — fence stripping, language detection, heuristics
 - **paste** — visual capture (`v` / `'<`), charwise replace vs append, insert-mode paste at saved cursor
-- **ui** — picker from insert, navigation, reorder keys, multiline preview, syntax highlighting, clipboard copy, which-key / `<C-w>` behavior
+- **ui** — picker from insert, navigation, reorder keys, auto-size layout, conditional preview, multiline preview, syntax highlighting, clipboard copy, which-key / `<C-w>` behavior
 - **yank** — `TextYankPost` capture
 - **setup** — `open_mapping` registration
 
 ## Roadmap
 
 Possible future work: Telescope picker, bulk delete.
-
-Preview highlighting uses built-in Vim syntax (and Treesitter when available). Set `preview_syntax = false` to show plain text only.
 
 ## License
 
