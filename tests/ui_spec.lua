@@ -135,6 +135,73 @@ describe("clipring.ui", function()
     ui.close()
   end)
 
+  it("keeps the list window fixed while navigating and resizing preview", function()
+    ring.clear()
+    ring.add({ "short" }, "v")
+    ring.add({ "alpha", "beta", "gamma", "delta", "epsilon" }, "V")
+    ui.open()
+    local list_win = vim.fn.bufwinid(h.find_clipring_buf())
+    local col_before = vim.api.nvim_win_get_config(list_win).col
+    local row_before = vim.api.nvim_win_get_config(list_win).row
+    assert.is_not_nil(h.clipring_preview_win())
+    feed_clipring("j")
+    assert.are.equal(col_before, vim.api.nvim_win_get_config(list_win).col)
+    assert.are.equal(row_before, vim.api.nvim_win_get_config(list_win).row)
+    assert.is_not_nil(h.clipring_preview_win())
+    ui.close()
+  end)
+
+  it("shows preview again when moving from a whitespace-only entry to real content", function()
+    ring.clear()
+    ring.add({ "visible", "lines" }, "V")
+    ring.add({ "   " }, "v")
+    ui.open()
+    assert.is_nil(h.clipring_preview_win())
+    feed_clipring("j")
+    assert.is_not_nil(h.clipring_preview_win())
+    local preview_buf = h.find_clipring_preview_buf()
+    assert.same({ "  visible", "  lines" }, vim.api.nvim_buf_get_lines(preview_buf, 0, -1, false))
+    ui.close()
+  end)
+
+  it("keeps preview when wrapping from last entry to first and back", function()
+    ring.clear()
+    for i = 1, 5 do
+      ring.add({ "entry-" .. i }, "v")
+    end
+    ui.open()
+    for _ = 1, 4 do
+      feed_clipring("j")
+    end
+    assert.are.equal(5, h.clipring_selected_line(h.find_clipring_buf()))
+    assert.is_not_nil(h.clipring_preview_win())
+    feed_clipring("j")
+    assert.are.equal(1, h.clipring_selected_line(h.find_clipring_buf()))
+    assert.is_not_nil(h.clipring_preview_win())
+    feed_clipring("k")
+    assert.are.equal(5, h.clipring_selected_line(h.find_clipring_buf()))
+    assert.is_not_nil(h.clipring_preview_win())
+    ui.close()
+  end)
+
+  it("restores preview after toggling through whitespace-only entries", function()
+    ring.clear()
+    ring.add({ "keep", "preview" }, "V")
+    ring.add({ "   " }, "v")
+    ring.add({ "first" }, "v")
+    ui.open()
+    assert.is_not_nil(h.clipring_preview_win())
+    feed_clipring("j") -- whitespace
+    assert.is_nil(h.clipring_preview_win())
+    feed_clipring("j") -- back to keep preview
+    assert.is_not_nil(h.clipring_preview_win())
+    feed_clipring("k") -- whitespace again
+    assert.is_nil(h.clipring_preview_win())
+    feed_clipring("k") -- first
+    assert.is_not_nil(h.clipring_preview_win())
+    ui.close()
+  end)
+
   it("truncates long previews with a more-lines indicator", function()
     require("clipring.config").setup({
       max_entries = 20,

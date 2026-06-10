@@ -16,8 +16,9 @@ Minimal yank history for Neovim — a lightweight Lua plugin inspired by YankRin
 ## Features
 
 - Automatic capture of every yank
-- Floating popup history (`:ClipRing`) with an auto-sizing multiline preview pane
-- Preview pane shown only when there is content to display; optional syntax highlighting for code
+- Floating popup history (`:ClipRing`) with a fixed history list and an auto-sizing preview pane
+- Preview pane shown only when the selected entry has content; optional syntax highlighting for code
+- `j` / `k` wrap at the ends of the list (newest ↔ oldest)
 - Navigate with `j` / `k`, reorder with `<C-j>` / `<C-k>`, paste with `<Enter>`, copy to the system clipboard with `y`, delete with `dd`
 - Works from Normal, Insert, and Visual modes
 - Optional JSON persistence between sessions
@@ -63,13 +64,15 @@ With a minimal `lazy.nvim` / `packer.nvim` setup, Neovim loads the plugin from `
 | `:ClipRing` | Always available (no keymap required) |
 | Your `open_mapping` | After you set one in `setup()` (e.g. `<leader>y`) |
 
-The picker opens as two side-by-side floats when there are yanks to show: a **history list** (height follows entry count) and a **preview pane** that resizes to fit the selected entry. Code yanks are syntax-highlighted when ClipRing can detect a language (markdown ` ```lang ` fences, shebangs, or simple heuristics). With an empty ring, only the list is shown.
+The picker opens as two side-by-side floats when there are yanks to show. The **history list** stays in a fixed position (only its height changes as you add or remove entries); the **preview pane** on the right resizes to fit the selected entry. Selection wraps circularly with `j` / `k` (from the last entry back to the first, and vice versa).
+
+Code yanks are syntax-highlighted when ClipRing can detect a language (markdown ` ```lang ` fences, shebangs, or simple heuristics). The preview is hidden for whitespace-only entries and returns when you move to an entry with real content. With an empty ring, only the list is shown.
 
 ### Inside the picker
 
 | Key | Action |
 |-----|--------|
-| `j` / `k` or `J` / `K` | Move selection up / down |
+| `j` / `k` or `J` / `K` | Move selection up / down (wraps at the ends) |
 | `<Up>` / `<Down>` | Same as `k` / `j` |
 | `<C-j>` / `<C-k>` | Move the **selected entry** down / up in history order (reorder) |
 | `<Enter>` | Paste the selected entry and close |
@@ -112,13 +115,15 @@ require("clipring").setup({
   reorder_up_mapping = "<C-k>",
   copy_mapping = "y",
 
-  -- Layout (list and preview auto-size within these limits)
+  -- Layout (list position is fixed; preview auto-sizes within these limits)
   picker_width = 80,        -- total inner width; 0 = nearly full editor width
   picker_max_height = 18,   -- max height for list and preview
   preview_max_lines = 16,   -- max lines per entry in the preview pane
   preview_syntax = true,    -- highlight code in the preview when a language is detected
 })
 ```
+
+**Layout** — `picker_width` sets the overall picker footprint. The history list keeps the same screen position while the picker is open; only the preview pane changes size. `preview_max_width` (advanced) caps preview width and also anchors the initial list placement when set.
 
 **`open_mapping`** — set a string (e.g. `"<leader>y"`) or multiple (`{ "<leader>y", "<M-y>" }`) to open ClipRing from Normal, Visual, and Insert. Leave unset or `nil` to use only `:ClipRing`. Use `false` to clear a keymap after a previous `setup()`.
 
@@ -136,7 +141,7 @@ If `<C-j>` / `<C-k>` conflict with global maps (e.g. `:move`), use different key
 require("clipring").setup({
   min_length = 1,             -- ignore yanks shorter than this (chars)
   preview_length = 80,        -- max chars in each one-line list label
-  preview_max_width = 120,    -- cap preview width; 0 = up to screen edge (default)
+  preview_max_width = 120,    -- cap preview width; 0 = content width up to screen edge (default)
   list_width = 0,             -- fixed list width in columns; 0 = auto (recommended)
 })
 ```
@@ -166,7 +171,7 @@ Coverage today:
 - **ring** — add, dedupe, max size, remove, reorder
 - **preview_syntax** — fence stripping, language detection, heuristics
 - **paste** — visual capture (`v` / `'<`), charwise replace vs append, insert-mode paste at saved cursor
-- **ui** — picker from insert, navigation, reorder keys, auto-size layout, conditional preview, multiline preview, syntax highlighting, clipboard copy, which-key / `<C-w>` behavior
+- **ui** — picker from insert, navigation, wrap-around selection, fixed list layout, preview resize/restore, conditional preview, syntax highlighting, clipboard copy, which-key / `<C-w>` behavior
 - **yank** — `TextYankPost` capture
 - **setup** — `open_mapping` registration
 
