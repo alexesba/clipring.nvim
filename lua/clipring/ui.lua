@@ -80,6 +80,25 @@ local function set_buf_lines(buf, lines)
   vim.api.nvim_buf_set_option(buf, "modifiable", false)
 end
 
+---@param bufhidden? string
+local function create_readonly_buf(name, filetype, bufhidden)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(buf, name)
+  vim.api.nvim_buf_set_option(buf, "bufhidden", bufhidden or "wipe")
+  vim.api.nvim_buf_set_option(buf, "filetype", filetype)
+  vim.api.nvim_buf_set_option(buf, "swapfile", false)
+  vim.api.nvim_buf_set_option(buf, "modifiable", false)
+  return buf
+end
+
+local function ensure_preview_buf()
+  if state.preview_buf and vim.api.nvim_buf_is_valid(state.preview_buf) then
+    return state.preview_buf
+  end
+  state.preview_buf = create_readonly_buf("clipring://preview", "clipring_preview", "hide")
+  return state.preview_buf
+end
+
 local function refresh_list_buffer()
   if not state.list_buf or not vim.api.nvim_buf_is_valid(state.list_buf) then
     return
@@ -108,6 +127,9 @@ local function refresh_list_buffer()
   if #all > 0 then
     vim.api.nvim_buf_clear_namespace(state.list_buf, ns, 0, -1)
     vim.api.nvim_buf_add_highlight(state.list_buf, ns, "CursorLine", state.index - 1, 0, -1)
+    if state.list_win and vim.api.nvim_win_is_valid(state.list_win) then
+      pcall(vim.api.nvim_win_set_cursor, state.list_win, { state.index, 0 })
+    end
   end
 end
 
@@ -148,12 +170,12 @@ local function apply_preview_filetype(filetype)
 
   local buf = state.preview_buf
   vim.api.nvim_buf_set_option(buf, "modifiable", true)
+  if vim.treesitter and vim.treesitter.stop then
+    pcall(vim.treesitter.stop, buf)
+  end
   vim.api.nvim_buf_set_option(buf, "filetype", filetype)
   if filetype == "clipring_preview" then
     vim.api.nvim_buf_set_option(buf, "syntax", "off")
-    if vim.treesitter and vim.treesitter.stop then
-      pcall(vim.treesitter.stop, buf)
-    end
   else
     vim.api.nvim_buf_set_option(buf, "syntax", "on")
     if vim.treesitter and vim.treesitter.language and vim.treesitter.start then
@@ -180,9 +202,7 @@ local function preview_should_show()
 end
 
 local function refresh_preview_buffer()
-  if not state.preview_buf or not vim.api.nvim_buf_is_valid(state.preview_buf) then
-    return
-  end
+  ensure_preview_buf()
 
   local all = ring.get_all()
   if #all == 0 then
@@ -237,6 +257,16 @@ local function clamp_preview_width(width)
   local preview_col = state.list_col + state.list_width + 2 + state.float_gap
   local max_on_screen = vim.o.columns - preview_col - 4
   return math.max(PREVIEW_MIN_WIDTH, math.min(width, max_on_screen))
+end
+
+--- Stable preview width for initial list placement (list stays put; preview resizes).
+local function preview_footprint_width()
+  local opts = config.get()
+  if opts.preview_max_width and opts.preview_max_width > 0 then
+    return opts.preview_max_width
+  end
+  local total = opts.picker_width > 0 and opts.picker_width or (vim.o.columns - 8)
+  return math.max(PREVIEW_MIN_WIDTH, math.min(math.floor(total * 0.45), total - 36))
 end
 
 --- Height of the history list from entry count.
@@ -359,21 +389,24 @@ end
 
 local function hide_preview_window()
   if state.preview_win and vim.api.nvim_win_is_valid(state.preview_win) then
-    vim.api.nvim_win_close(state.preview_win, true)
+    -- Do not force-close: preview buf uses bufhidden=hide and must survive for reuse.
+    vim.api.nvim_win_close(state.preview_win, false)
   end
   state.preview_win = nil
 end
 
 local function show_preview_window()
-  if not state.preview_buf or not vim.api.nvim_buf_is_valid(state.preview_buf) then
-    return
-  end
+  ensure_preview_buf()
   refresh_preview_buffer()
-  local entry = ring.get(state.index)
-  local pw, ph = preview_size_for_entry(entry)
-  pw = clamp_preview_width(pw)
 
-  if not state.preview_win or not vim.api.nvim_win_is_valid(state.preview_win) then
+  if state.preview_win and not vim.api.nvim_win_is_valid(state.preview_win) then
+    state.preview_win = nil
+  end
+
+  if not state.preview_win then
+    local entry = ring.get(state.index)
+    local pw, ph = preview_size_for_entry(entry)
+    pw = clamp_preview_width(pw)
     state.preview_win = vim.api.nvim_open_win(state.preview_buf, false, vim.tbl_extend("force", float_opts, {
       width = pw,
       height = ph,
@@ -388,9 +421,6 @@ end
 
 local function sync_preview_visibility()
   local show = preview_should_show()
-  local entry = ring.get(state.index)
-  local initial_pw = show and preview_size_for_entry(entry) or nil
-  apply_list_layout(list_layout(initial_pw, show))
   if show then
     show_preview_window()
   else
@@ -617,16 +647,6 @@ local function attach_keymaps()
   map("<C-W>", block_window_prefix, "ClipRing: disable window switch")
 end
 
-local function create_readonly_buf(name, filetype)
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(buf, name)
-  vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-  vim.api.nvim_buf_set_option(buf, "filetype", filetype)
-  vim.api.nvim_buf_set_option(buf, "swapfile", false)
-  vim.api.nvim_buf_set_option(buf, "modifiable", false)
-  return buf
-end
-
 ---@param opts table|nil
 ---@field from_insert boolean|nil set when the open keymap runs in Insert mode
 function M.open(opts)
@@ -652,12 +672,10 @@ function M.open(opts)
   state.index = 1
 
   state.list_buf = create_readonly_buf("clipring://history", "clipring")
-  state.preview_buf = create_readonly_buf("clipring://preview", "clipring_preview")
+  state.preview_buf = create_readonly_buf("clipring://preview", "clipring_preview", "hide")
 
-  local show_preview = preview_should_show()
-  local entry = show_preview and ring.get(state.index) or nil
-  local initial_pw = show_preview and preview_size_for_entry(entry) or nil
-  local layout = list_layout(initial_pw, show_preview)
+  local has_entries = ring.count() > 0
+  local layout = list_layout(preview_footprint_width(), has_entries)
   set_list_layout_state(layout)
 
   state.list_win = vim.api.nvim_open_win(state.list_buf, true, vim.tbl_extend("force", float_opts, {
@@ -671,7 +689,8 @@ function M.open(opts)
 
   configure_float_win(state.list_win)
 
-  if show_preview then
+  if preview_should_show() then
+    local entry = ring.get(state.index)
     local pw, ph = preview_size_for_entry(entry)
     pw = clamp_preview_width(pw)
     state.preview_win = vim.api.nvim_open_win(state.preview_buf, false, vim.tbl_extend("force", float_opts, {
