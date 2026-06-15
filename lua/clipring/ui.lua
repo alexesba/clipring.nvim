@@ -176,6 +176,31 @@ local function preview_lines_for_entry(entry)
   return padded
 end
 
+local function schedule_preview_treesitter(buf, filetype)
+  if filetype == "clipring_preview" then
+    return
+  end
+  vim.defer_fn(function()
+    if not state.preview_buf or buf ~= state.preview_buf or not vim.api.nvim_buf_is_valid(buf) then
+      return
+    end
+    if not state.preview_win or not vim.api.nvim_win_is_valid(state.preview_win) then
+      return
+    end
+    if vim.api.nvim_buf_get_option(buf, "filetype") ~= filetype then
+      return
+    end
+    if vim.treesitter and vim.treesitter.language and vim.treesitter.start then
+      pcall(function()
+        local lang = vim.treesitter.language.get_lang(filetype)
+        if lang then
+          vim.treesitter.start(buf, lang)
+        end
+      end)
+    end
+  end, 10)
+end
+
 local function apply_preview_filetype(filetype)
   if not state.preview_buf or not vim.api.nvim_buf_is_valid(state.preview_buf) then
     return
@@ -186,20 +211,20 @@ local function apply_preview_filetype(filetype)
   if vim.treesitter and vim.treesitter.stop then
     pcall(vim.treesitter.stop, buf)
   end
-  vim.api.nvim_buf_set_option(buf, "filetype", filetype)
-  if filetype == "clipring_preview" then
-    vim.api.nvim_buf_set_option(buf, "syntax", "off")
-  else
-    vim.api.nvim_buf_set_option(buf, "syntax", "on")
-    if vim.treesitter and vim.treesitter.language and vim.treesitter.start then
-      pcall(function()
-        local lang = vim.treesitter.language.get_lang(filetype)
-        if lang then
-          vim.treesitter.start(buf, lang)
-        end
-      end)
-    end
+
+  -- Reset filetype so Vim syntax re-runs when switching between entries of the same language.
+  vim.api.nvim_buf_set_option(buf, "filetype", "clipring_preview")
+  vim.api.nvim_buf_set_option(buf, "syntax", "off")
+
+  if filetype ~= "clipring_preview" then
+    vim.api.nvim_buf_set_option(buf, "filetype", filetype)
+    vim.api.nvim_buf_call(buf, function()
+      vim.bo.syntax = "on"
+      vim.cmd("syntax sync fromstart")
+    end)
+    schedule_preview_treesitter(buf, filetype)
   end
+
   vim.api.nvim_buf_set_option(buf, "modifiable", false)
 end
 
@@ -413,7 +438,6 @@ end
 
 local function show_preview_window()
   ensure_preview_buf()
-  refresh_preview_buffer()
 
   if state.preview_win and not vim.api.nvim_win_is_valid(state.preview_win) then
     state.preview_win = nil
@@ -433,6 +457,8 @@ local function show_preview_window()
   else
     apply_preview_layout()
   end
+
+  refresh_preview_buffer()
 end
 
 local function sync_preview_visibility()

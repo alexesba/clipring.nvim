@@ -322,6 +322,27 @@ describe("clipring.ui", function()
     ui.close()
   end)
 
+  it("restores preview syntax after hiding and showing the preview pane", function()
+    ring.clear()
+    ring.add({ "   " }, "v")
+    ring.add({
+      "```ruby",
+      "def foo",
+      "end",
+      "```",
+    }, "V")
+    ui.open()
+    feed_clipring("j")
+    assert.is_nil(h.clipring_preview_win())
+    feed_clipring("k")
+    assert.is_not_nil(h.clipring_preview_win())
+    local preview_buf = h.find_clipring_preview_buf()
+    assert.are.equal("ruby", vim.api.nvim_buf_get_option(preview_buf, "filetype"))
+    local syntax = vim.api.nvim_buf_get_option(preview_buf, "syntax")
+    assert.is_true(syntax == true or syntax == "on" or syntax == 1)
+    ui.close()
+  end)
+
   it("maps custom copy key from config", function()
     require("clipring.config").setup({
       max_entries = 20,
