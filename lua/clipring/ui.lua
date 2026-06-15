@@ -157,7 +157,9 @@ local function preview_content_for_entry(entry)
   end
 
   local opts = config.get()
-  local content_lines, filetype = preview_syntax.analyze(entry.lines, opts)
+  local content_lines, filetype = preview_syntax.analyze(entry.lines, vim.tbl_extend("force", opts, {
+    source_filetype = entry.filetype,
+  }))
   local max_lines = opts.preview_max_lines
   if max_lines > 0 and #content_lines > max_lines then
     local truncated = {}

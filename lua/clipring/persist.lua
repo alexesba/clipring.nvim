@@ -43,6 +43,7 @@ function M.load()
         lines = item.lines,
         regtype = item.regtype,
         time = item.time or os.time(),
+        filetype = item.filetype,
       })
     end
   end
@@ -65,6 +66,7 @@ function M.save()
       lines = entry.lines,
       regtype = entry.regtype,
       time = entry.time,
+      filetype = entry.filetype,
     })
   end
 

@@ -22,4 +22,20 @@ describe("clipring.yank", function()
 
     vim.api.nvim_buf_delete(buf, { force = true })
   end)
+
+  it("stores source buffer filetype on yank", function()
+    local buf = vim.api.nvim_create_buf(true, true)
+    vim.api.nvim_buf_set_option(buf, "filetype", "ruby")
+    vim.api.nvim_buf_set_lines(buf, 0, -1, true, { 'create_table "widgets" do' })
+    vim.api.nvim_set_current_buf(buf)
+
+    vim.fn.setreg('"', 'create_table "widgets" do')
+    vim.api.nvim_buf_call(buf, function()
+      vim.cmd("normal! yy")
+    end)
+
+    assert.are.equal("ruby", ring.get(1).filetype)
+
+    vim.api.nvim_buf_delete(buf, { force = true })
+  end)
 end)

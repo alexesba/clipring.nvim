@@ -6,6 +6,7 @@ local M = {}
 ---@field lines string[]
 ---@field regtype string
 ---@field time number
+---@field filetype string|nil filetype of the buffer when the yank was captured
 
 ---@type ClipRingEntry[]
 local entries = {}
@@ -32,7 +33,8 @@ end
 
 ---@param lines string[]
 ---@param regtype string
-function M.add(lines, regtype)
+---@param filetype string|nil
+function M.add(lines, regtype, filetype)
   if not lines or #lines == 0 then
     return
   end
@@ -47,6 +49,7 @@ function M.add(lines, regtype)
     lines = lines,
     regtype = regtype,
     time = os.time(),
+    filetype = filetype,
   }
 
   if opts.deduplicate and #entries > 0 and same_entry(entries[1], entry) then

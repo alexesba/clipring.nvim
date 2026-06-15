@@ -30,7 +30,13 @@ function M.setup()
       end
 
       local regtype = vim.fn.getregtype(regname)
-      ring.add(lines, regtype)
+
+      local filetype = vim.bo.filetype
+      if filetype == "" or filetype == "clipring" or filetype == "clipring_preview" then
+        filetype = nil
+      end
+
+      ring.add(lines, regtype, filetype)
     end,
   })
 end

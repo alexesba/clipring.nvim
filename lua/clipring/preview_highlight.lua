@@ -4,7 +4,15 @@ local function treesitter_lang(filetype)
   if not (vim.treesitter and vim.treesitter.language and vim.treesitter.language.get_lang) then
     return filetype
   end
-  return vim.treesitter.language.get_lang(filetype) or filetype
+  local lang = vim.treesitter.language.get_lang(filetype) or filetype
+  -- LazyVim often installs bash but not sh; both highlight shell scripts.
+  if lang == "sh" and vim.treesitter.language.add then
+    local has_sh = pcall(vim.treesitter.language.add, "sh")
+    if not has_sh and pcall(vim.treesitter.language.add, "bash") then
+      return "bash"
+    end
+  end
+  return lang
 end
 
 local function attach_builtin_treesitter(buf, filetype)
@@ -56,7 +64,7 @@ function M.attach(buf, filetype)
     return
   end
 
-  if filetype == "clipring_preview" or filetype == "" then
+  if filetype == "clipring_preview" or filetype == "clipring" or filetype == "" then
     if vim.treesitter and vim.treesitter.stop then
       pcall(vim.treesitter.stop, buf)
     end
@@ -73,12 +81,6 @@ function M.attach(buf, filetype)
   end
   vim.api.nvim_buf_set_option(buf, "filetype", filetype)
   vim.api.nvim_buf_set_option(buf, "modifiable", false)
-
-  vim.api.nvim_exec_autocmds("FileType", {
-    buffer = buf,
-    modeline = false,
-    data = filetype,
-  })
 
   local function run()
     if not vim.api.nvim_buf_is_valid(buf) then

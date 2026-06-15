@@ -65,6 +65,80 @@ describe("clipring.preview_syntax", function()
     assert.are.equal("lua", ft)
   end)
 
+  it("detects multi-line lua with clipring requires without matching plugin filetype", function()
+    local _, ft = preview_syntax.analyze({
+      'local config = require("clipring.config")',
+      'local yank = require("clipring.yank")',
+      'local persist = require("clipring.persist")',
+      'local ui = require("clipring.ui")',
+      'local which_key = require("clipring.which_key")',
+    })
+    assert.are.equal("lua", ft)
+  end)
+
+  it("detects bash from a fenced block", function()
+    local _, ft = preview_syntax.analyze({
+      "```bash",
+      "echo hello",
+      "```",
+    })
+    assert.are.equal("bash", ft)
+  end)
+
+  it("detects bash from shebang", function()
+    local _, ft = preview_syntax.analyze({
+      "#!/usr/bin/env bash",
+      "set -euo pipefail",
+      'echo "hi"',
+    })
+    assert.are.equal("bash", ft)
+  end)
+
+  it("heuristically detects bash without a fence or shebang", function()
+    local _, ft = preview_syntax.analyze({
+      "set -euo pipefail",
+      'export FOO="bar"',
+      "echo hello",
+    })
+    assert.are.equal("bash", ft)
+  end)
+
+  it("heuristically detects rails schema.rb as ruby", function()
+    local _, ft = preview_syntax.analyze({
+      '  create_table "active_storage_attachments", force: :cascade do |t|',
+      '    t.bigint "blob_id", null: false',
+      '    t.datetime "created_at", precision: nil, null: false',
+      '    t.string "name", null: false',
+      '    t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"',
+      "  end",
+    })
+    assert.are.equal("ruby", ft)
+  end)
+
+  it("heuristically detects indented source lines as bash", function()
+    local _, ft = preview_syntax.analyze({
+      '  source "$DOTFILES_DIR/shell/common/functions.sh"',
+      '  source "$DOTFILES_DIR/shell/common/terminal/use.sh"',
+    })
+    assert.are.equal("bash", ft)
+  end)
+
+  it("uses source_filetype from the yank buffer when snippet sniffing is ambiguous", function()
+    local _, ft = preview_syntax.analyze({
+      '  source "$DOTFILES_DIR/shell/common/functions.sh"',
+    }, { source_filetype = "sh" })
+    assert.are.equal("sh", ft)
+  end)
+
+  it("ignores generic source buffers like markdown", function()
+    local _, ft = preview_syntax.analyze({
+      '  create_table "widgets" do |t|',
+      '    t.string "name"',
+      "  end",
+    }, { source_filetype = "markdown" })
+    assert.are.equal("ruby", ft)
+  end)
+
   it("falls back to clipring_preview for plain prose", function()
     local lines, ft = preview_syntax.analyze({ "Just a short note." })
     assert.same({ "Just a short note." }, lines)
