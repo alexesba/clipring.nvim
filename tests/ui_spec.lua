@@ -285,6 +285,43 @@ describe("clipring.ui", function()
     ui.close()
   end)
 
+  it("prompts to clear all entries and clears on confirm", function()
+    ui.open()
+    feed_clipring("C")
+    local clip_buf = h.find_clipring_buf()
+    local lines = vim.api.nvim_buf_get_lines(clip_buf, 0, -1, false)
+    assert.matches("Clear all 2 entries", lines[1])
+    feed_clipring("y")
+    assert.are.equal(0, ring.count())
+    assert.matches("No yanks yet", vim.api.nvim_buf_get_lines(clip_buf, 0, -1, false)[1])
+    ui.close()
+  end)
+
+  it("cancels clear all on n or Esc", function()
+    ui.open()
+    feed_clipring("C")
+    feed_clipring("n")
+    assert.are.equal(2, ring.count())
+    feed_clipring("C")
+    feed_clipring("\27")
+    assert.are.equal(2, ring.count())
+    ui.close()
+  end)
+
+  it("can disable clear all mapping from config", function()
+    require("clipring.config").setup({
+      max_entries = 20,
+      deduplicate = true,
+      min_length = 1,
+      persist = false,
+      clear_all_mapping = false,
+    })
+    ui.open()
+    feed_clipring("C")
+    assert.are.equal(2, ring.count())
+    ui.close()
+  end)
+
   it("maps custom copy key from config", function()
     require("clipring.config").setup({
       max_entries = 20,
