@@ -21,6 +21,7 @@ local state = {
   list_row = 0,
   list_height = 3,
   float_gap = 1,
+  clear_all_confirm = false,
 }
 
 local ns = vim.api.nvim_create_namespace("ClipRing")
@@ -106,6 +107,18 @@ local function refresh_list_buffer()
 
   local lines = {}
   local all = ring.get_all()
+
+  if state.clear_all_confirm and #all > 0 then
+    local n = #all
+    local word = n == 1 and "entry" or "entries"
+    lines = {
+      string.format("Clear all %d %s?", n, word),
+      "  y = yes   n = cancel",
+    }
+    set_buf_lines(state.list_buf, lines)
+    return
+  end
+
   if #all == 0 then
     lines = { "No yanks yet. Copy something with y or Y." }
     state.index = 1
@@ -198,6 +211,9 @@ local function entry_has_preview_content(entry)
 end
 
 local function preview_should_show()
+  if state.clear_all_confirm then
+    return false
+  end
   return ring.count() > 0 and entry_has_preview_content(ring.get(state.index))
 end
 
@@ -462,6 +478,7 @@ local function close_windows_and_bufs()
   state.list_win = nil
   state.preview_buf = nil
   state.preview_win = nil
+  state.clear_all_confirm = false
 end
 
 local function close(restore_insert)
@@ -491,6 +508,10 @@ local function focus_list_normal()
 end
 
 local function select_current()
+  if state.clear_all_confirm then
+    return
+  end
+
   local all = ring.get_all()
   if #all == 0 then
     close()
@@ -528,7 +549,39 @@ local function copy_current()
   end
 end
 
+local function cancel_clear_all_confirm()
+  if not state.clear_all_confirm then
+    return
+  end
+  state.clear_all_confirm = false
+  refresh_buffers()
+end
+
+local function request_clear_all_confirm()
+  if ring.count() == 0 or state.clear_all_confirm then
+    return
+  end
+  state.clear_all_confirm = true
+  refresh_buffers()
+end
+
+local function confirm_clear_all()
+  if not state.clear_all_confirm then
+    return
+  end
+  ring.clear()
+  persist.save()
+  state.clear_all_confirm = false
+  state.index = 1
+  refresh_buffers()
+end
+
 local function delete_current()
+  if state.clear_all_confirm then
+    cancel_clear_all_confirm()
+    return
+  end
+
   local all = ring.get_all()
   if #all == 0 then
     return
@@ -547,6 +600,11 @@ local function delete_current()
 end
 
 local function move_selection(delta)
+  if state.clear_all_confirm then
+    cancel_clear_all_confirm()
+    return
+  end
+
   local count = ring.count()
   if count == 0 then
     return
@@ -556,6 +614,11 @@ local function move_selection(delta)
 end
 
 local function reorder_current(delta)
+  if state.clear_all_confirm then
+    cancel_clear_all_confirm()
+    return
+  end
+
   if ring.count() == 0 then
     return
   end
@@ -627,16 +690,39 @@ local function attach_keymaps()
   local copy_key = picker_mapping("copy_mapping", "y")
   if copy_key then
     map(copy_key, function()
-      copy_current()
-    end, "ClipRing: copy entry to system clipboard")
+      if state.clear_all_confirm then
+        confirm_clear_all()
+      else
+        copy_current()
+      end
+    end, "ClipRing: copy entry or confirm clear all")
   end
   map("dd", function()
     delete_current()
   end, "ClipRing: delete entry")
+  local clear_all = picker_mapping("clear_all_mapping", "C")
+  if clear_all then
+    map(clear_all, function()
+      request_clear_all_confirm()
+    end, "ClipRing: clear all entries")
+  end
+  map("n", function()
+    if state.clear_all_confirm then
+      cancel_clear_all_confirm()
+    end
+  end, "ClipRing: cancel clear all")
   map("q", function()
+    if state.clear_all_confirm then
+      cancel_clear_all_confirm()
+      return
+    end
     close()
   end, "ClipRing: close")
   map("<Esc>", function()
+    if state.clear_all_confirm then
+      cancel_clear_all_confirm()
+      return
+    end
     close()
   end, "ClipRing: close")
 

@@ -78,7 +78,8 @@ Code yanks are syntax-highlighted when ClipRing can detect a language (markdown 
 | `<Enter>` | Paste the selected entry and close |
 | `y` | Copy the selected entry to the system clipboard (`+` / `*`) and keep the picker open |
 | `dd` | Delete the selected entry from history |
-| `q` or `<Esc>` | Close without pasting |
+| `C` | Clear all entries (asks for confirmation: `y` yes, `n` cancel) |
+| `q` or `<Esc>` | Close without pasting (`Esc` cancels a pending clear-all first) |
 
 While the picker is focused, `<C-w>` does not switch windows or open which-key (close the picker first, like Telescope). Keys apply to the history list; the preview pane is read-only. If you use [which-key.nvim](https://github.com/folke/which-key.nvim), `setup()` disables which-key on the history list buffer (`clipring` filetype).
 
@@ -114,6 +115,7 @@ require("clipring").setup({
   reorder_down_mapping = "<C-j>",
   reorder_up_mapping = "<C-k>",
   copy_mapping = "y",
+  clear_all_mapping = "C",
 
   -- Layout (list position is fixed; preview auto-sizes within these limits)
   picker_width = 80,        -- total inner width; 0 = nearly full editor width
@@ -127,7 +129,9 @@ require("clipring").setup({
 
 **`open_mapping`** — set a string (e.g. `"<leader>y"`) or multiple (`{ "<leader>y", "<M-y>" }`) to open ClipRing from Normal, Visual, and Insert. Leave unset or `nil` to use only `:ClipRing`. Use `false` to clear a keymap after a previous `setup()`.
 
-Omit `reorder_down_mapping` / `reorder_up_mapping` / `copy_mapping` to keep the defaults above. Set any of them to `false` to turn off that binding.
+Omit `reorder_down_mapping` / `reorder_up_mapping` / `copy_mapping` / `clear_all_mapping` to keep the defaults above. Set any of them to `false` to turn off that binding.
+
+During clear-all confirmation, `y` confirms (same key as `copy_mapping` when not confirming) and `n` cancels.
 
 Copy uses Neovim’s `+` and `*` registers (and the unnamed `"` register). You need clipboard support in Neovim (`:checkhealth clipboard`); on remote SSH, OSC52 or a clipboard provider may be required.
 
@@ -171,13 +175,13 @@ Coverage today:
 - **ring** — add, dedupe, max size, remove, reorder
 - **preview_syntax** — fence stripping, language detection, heuristics
 - **paste** — visual capture (`v` / `'<`), charwise replace vs append, insert-mode paste at saved cursor
-- **ui** — picker from insert, navigation, wrap-around selection, fixed list layout, preview resize/restore, conditional preview, syntax highlighting, clipboard copy, which-key / `<C-w>` behavior
+- **ui** — picker from insert, navigation, wrap-around selection, fixed list layout, preview resize/restore, conditional preview, clear all with confirmation, syntax highlighting, clipboard copy, which-key / `<C-w>` behavior
 - **yank** — `TextYankPost` capture
 - **setup** — `open_mapping` registration
 
 ## Roadmap
 
-Possible future work: Telescope picker, bulk delete.
+Possible future work: Telescope picker, selective bulk delete.
 
 ## License
 
