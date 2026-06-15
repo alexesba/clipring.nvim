@@ -115,11 +115,9 @@ end
 ---@param contents string
 ---@return string|nil
 local function filetype_from_heuristics(lines, contents)
-  if #lines < 2 then
-    return nil
-  end
-
   local rules = {
+    { ft = "lua", re = "^require%s*%(" },
+    { ft = "lua", re = "^return%s*{" },
     { ft = "python", re = "\ndef %w+%([^)]*%)%s*:" },
     { ft = "python", re = "^def %w+%([^)]*%)%s*:" },
     { ft = "python", re = "\nfrom %w+ import " },

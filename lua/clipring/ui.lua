@@ -3,6 +3,7 @@ local ring = require("clipring.ring")
 local paste = require("clipring.paste")
 local persist = require("clipring.persist")
 local preview_syntax = require("clipring.preview_syntax")
+local preview_highlight = require("clipring.preview_highlight")
 
 local M = {}
 
@@ -22,6 +23,8 @@ local state = {
   list_height = 3,
   float_gap = 1,
   clear_all_confirm = false,
+  preview_highlight_ft = nil,
+  preview_hl_autocmd = false,
 }
 
 local ns = vim.api.nvim_create_namespace("ClipRing")
@@ -176,56 +179,28 @@ local function preview_lines_for_entry(entry)
   return padded
 end
 
-local function schedule_preview_treesitter(buf, filetype)
-  if filetype == "clipring_preview" then
+local function ensure_preview_hl_autocmd()
+  if state.preview_hl_autocmd or not state.preview_buf then
     return
   end
-  vim.defer_fn(function()
-    if not state.preview_buf or buf ~= state.preview_buf or not vim.api.nvim_buf_is_valid(buf) then
-      return
-    end
-    if not state.preview_win or not vim.api.nvim_win_is_valid(state.preview_win) then
-      return
-    end
-    if vim.api.nvim_buf_get_option(buf, "filetype") ~= filetype then
-      return
-    end
-    if vim.treesitter and vim.treesitter.language and vim.treesitter.start then
-      pcall(function()
-        local lang = vim.treesitter.language.get_lang(filetype)
-        if lang then
-          vim.treesitter.start(buf, lang)
-        end
-      end)
-    end
-  end, 10)
+  state.preview_hl_autocmd = true
+  vim.api.nvim_create_autocmd("BufWinEnter", {
+    buffer = state.preview_buf,
+    callback = function()
+      if state.preview_highlight_ft and state.preview_highlight_ft ~= "clipring_preview" then
+        preview_highlight.attach(state.preview_buf, state.preview_highlight_ft)
+      end
+    end,
+  })
 end
 
 local function apply_preview_filetype(filetype)
   if not state.preview_buf or not vim.api.nvim_buf_is_valid(state.preview_buf) then
     return
   end
-
-  local buf = state.preview_buf
-  vim.api.nvim_buf_set_option(buf, "modifiable", true)
-  if vim.treesitter and vim.treesitter.stop then
-    pcall(vim.treesitter.stop, buf)
-  end
-
-  -- Reset filetype so Vim syntax re-runs when switching between entries of the same language.
-  vim.api.nvim_buf_set_option(buf, "filetype", "clipring_preview")
-  vim.api.nvim_buf_set_option(buf, "syntax", "off")
-
-  if filetype ~= "clipring_preview" then
-    vim.api.nvim_buf_set_option(buf, "filetype", filetype)
-    vim.api.nvim_buf_call(buf, function()
-      vim.bo.syntax = "on"
-      vim.cmd("syntax sync fromstart")
-    end)
-    schedule_preview_treesitter(buf, filetype)
-  end
-
-  vim.api.nvim_buf_set_option(buf, "modifiable", false)
+  state.preview_highlight_ft = filetype
+  ensure_preview_hl_autocmd()
+  preview_highlight.attach(state.preview_buf, filetype)
 end
 
 local function entry_has_preview_content(entry)
@@ -505,6 +480,8 @@ local function close_windows_and_bufs()
   state.preview_buf = nil
   state.preview_win = nil
   state.clear_all_confirm = false
+  state.preview_highlight_ft = nil
+  state.preview_hl_autocmd = nil
 end
 
 local function close(restore_insert)

@@ -60,6 +60,11 @@ describe("clipring.preview_syntax", function()
     assert.are.equal("python", ft)
   end)
 
+  it("detects single-line lua without a fence", function()
+    local _, ft = preview_syntax.analyze({ 'require("clipring").setup({})' })
+    assert.are.equal("lua", ft)
+  end)
+
   it("falls back to clipring_preview for plain prose", function()
     local lines, ft = preview_syntax.analyze({ "Just a short note." })
     assert.same({ "Just a short note." }, lines)
