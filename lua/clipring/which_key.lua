@@ -1,16 +1,18 @@
 local M = {}
 
---- Disable which-key in ClipRing picker buffers (same idea as TelescopePrompt).
-function M.setup()
-  local ok, wk_config = pcall(require, "which-key.config")
-  if not ok or not wk_config.disable or not wk_config.disable.ft then
+---@return boolean
+function M.available()
+  local ok, wk = pcall(require, "which-key")
+  return ok and type(wk.show) == "function"
+end
+
+---Show a cheat-sheet of the current buffer's mappings via which-key.
+---No-op when which-key is not installed.
+function M.show_help()
+  if not M.available() then
     return
   end
-  for _, ft in ipairs({ "clipring", "clipring_preview" }) do
-    if not vim.tbl_contains(wk_config.disable.ft, ft) then
-      table.insert(wk_config.disable.ft, ft)
-    end
-  end
+  require("which-key").show({ global = false })
 end
 
 return M

@@ -36,16 +36,33 @@ describe("clipring.ui", function()
     return clip_buf
   end
 
-  it("maps Ctrl-w without a which-key trigger on the picker buffer", function()
+  it("maps Ctrl-w to block window switch when which-key is unavailable", function()
+    local which_key = require("clipring.which_key")
+    if which_key.available() then
+      return
+    end
     ui.open()
     local clip_buf = h.find_clipring_buf()
     vim.api.nvim_set_current_win(vim.fn.bufwinid(clip_buf))
     local map = vim.fn.maparg("<C-w>", "n", false, true)
     assert.is_true(type(map) == "table")
     assert.is_true(map.callback ~= nil)
-    if map.desc then
-      assert.is_nil(map.desc:find("which%-key%-trigger", 1, true))
+    assert.are.equal("ClipRing: disable window switch", map.desc)
+    assert.are.equal("", vim.fn.maparg("g?", "n"))
+    ui.close()
+  end)
+
+  it("maps Ctrl-w to show keymaps when which-key is installed", function()
+    local which_key = require("clipring.which_key")
+    if not which_key.available() then
+      return
     end
+    ui.open()
+    local clip_buf = h.find_clipring_buf()
+    vim.api.nvim_set_current_win(vim.fn.bufwinid(clip_buf))
+    local map = vim.fn.maparg("<C-w>", "n", false, true)
+    assert.are.equal("ClipRing: show keymaps", map.desc)
+    ui.close()
   end)
 
   it("blocks Ctrl-w window switch while picker is focused", function()

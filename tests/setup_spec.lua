@@ -18,15 +18,6 @@ describe("clipring.setup", function()
     assert.are_not.equal("", vim.fn.maparg("<M-y>", "n"))
   end)
 
-  it("registers clipring filetype with which-key disable when installed", function()
-    local ok, wk_config = pcall(require, "which-key.config")
-    if not ok then
-      return
-    end
-    require("clipring.which_key").setup()
-    assert.is_true(vim.tbl_contains(wk_config.disable.ft, "clipring"))
-  end)
-
   it("clears open_mapping when setup sets open_mapping to false", function()
     clipring.setup({ open_mapping = "<leader>cr" })
     clipring.setup({ open_mapping = false })

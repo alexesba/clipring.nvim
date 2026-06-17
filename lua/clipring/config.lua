@@ -12,6 +12,7 @@ local M = {}
 ---@field reorder_up_mapping string|false|nil move selected entry up in picker (default `<C-k>`)
 ---@field copy_mapping string|false|nil copy selected entry to system clipboard in picker (default `y`)
 ---@field clear_all_mapping string|false|nil clear entire history in picker with confirmation (default `C`)
+---@field help_mapping string|false|nil which-key cheat-sheet key in picker (default `g?`; only when which-key is installed)
 ---@field picker_width number total inner width of list + preview (`0` = nearly full editor width)
 ---@field list_width number width of the history list (`0` = auto; fixed width is advanced)
 ---@field preview_max_width number max preview width (`0` = content width up to screen edge)
@@ -31,6 +32,7 @@ M.defaults = {
   reorder_up_mapping = "<C-k>",
   copy_mapping = "y",
   clear_all_mapping = "C",
+  help_mapping = "g?",
   picker_width = 80,
   list_width = 0,
   preview_max_width = 0,

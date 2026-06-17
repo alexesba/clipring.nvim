@@ -4,6 +4,7 @@ local paste = require("clipring.paste")
 local persist = require("clipring.persist")
 local preview_syntax = require("clipring.preview_syntax")
 local preview_highlight = require("clipring.preview_highlight")
+local which_key = require("clipring.which_key")
 
 local M = {}
 
@@ -734,8 +735,22 @@ local function attach_keymaps()
   local function block_window_prefix()
     return
   end
-  map("<C-w>", block_window_prefix, "ClipRing: disable window switch")
-  map("<C-W>", block_window_prefix, "ClipRing: disable window switch")
+
+  if which_key.available() then
+    local function show_picker_help()
+      which_key.show_help()
+    end
+
+    local help = picker_mapping("help_mapping", "g?")
+    if help then
+      map(help, show_picker_help, "ClipRing: show keymaps")
+    end
+    map("<C-w>", show_picker_help, "ClipRing: show keymaps")
+    map("<C-W>", show_picker_help, "ClipRing: show keymaps")
+  else
+    map("<C-w>", block_window_prefix, "ClipRing: disable window switch")
+    map("<C-W>", block_window_prefix, "ClipRing: disable window switch")
+  end
 end
 
 ---@param opts table|nil

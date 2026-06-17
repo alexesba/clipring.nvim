@@ -80,8 +80,9 @@ Code yanks are syntax-highlighted when ClipRing can detect a language (markdown 
 | `dd` | Delete the selected entry from history |
 | `C` | Clear all entries (asks for confirmation: `y` yes, `n` cancel) |
 | `q` or `<Esc>` | Close without pasting (`Esc` cancels a pending clear-all first) |
+| `g?` / `<C-w>` | Show picker key cheat-sheet (**only when [which-key.nvim](https://github.com/folke/which-key.nvim) is installed**) |
 
-While the picker is focused, `<C-w>` does not switch windows or open which-key (close the picker first, like Telescope). Keys apply to the history list; the preview pane is read-only. If you use [which-key.nvim](https://github.com/folke/which-key.nvim), `setup()` disables which-key on the history list buffer (`clipring` filetype).
+When which-key is installed, `g?` and `<C-w>` open a scoped which-key popup for this buffer. Without which-key, `<C-w>` is disabled in the picker so you do not accidentally switch windows (close the picker first). Keys apply to the history list; the preview pane is read-only.
 
 ### Paste behavior by mode
 
@@ -116,6 +117,7 @@ require("clipring").setup({
   reorder_up_mapping = "<C-k>",
   copy_mapping = "y",
   clear_all_mapping = "C",
+  help_mapping = "g?",       -- which-key cheat-sheet (`g?`); requires which-key.nvim
 
   -- Layout (list position is fixed; preview auto-sizes within these limits)
   picker_width = 80,        -- total inner width; 0 = nearly full editor width
@@ -129,7 +131,7 @@ require("clipring").setup({
 
 **`open_mapping`** — set a string (e.g. `"<leader>y"`) or multiple (`{ "<leader>y", "<M-y>" }`) to open ClipRing from Normal, Visual, and Insert. Leave unset or `nil` to use only `:ClipRing`. Use `false` to clear a keymap after a previous `setup()`.
 
-Omit `reorder_down_mapping` / `reorder_up_mapping` / `copy_mapping` / `clear_all_mapping` to keep the defaults above. Set any of them to `false` to turn off that binding.
+Omit `reorder_down_mapping` / `reorder_up_mapping` / `copy_mapping` / `clear_all_mapping` / `help_mapping` to keep the defaults above. Set any of them to `false` to turn off that binding. `help_mapping` and `<C-w>` cheat-sheet bindings apply only when which-key.nvim is installed.
 
 During clear-all confirmation, `y` confirms (same key as `copy_mapping` when not confirming) and `n` cancels.
 
@@ -175,7 +177,7 @@ Coverage today:
 - **ring** — add, dedupe, max size, remove, reorder
 - **preview_syntax** — fence stripping, language detection, heuristics
 - **paste** — visual capture (`v` / `'<`), charwise replace vs append, insert-mode paste at saved cursor
-- **ui** — picker from insert, navigation, wrap-around selection, fixed list layout, preview resize/restore, conditional preview, clear all with confirmation, syntax highlighting, clipboard copy, which-key / `<C-w>` behavior
+- **ui** — picker from insert, navigation, wrap-around selection, fixed list layout, preview resize/restore, conditional preview, clear all with confirmation, syntax highlighting, clipboard copy, which-key cheat-sheet (`g?` / `<C-w>`)
 - **yank** — `TextYankPost` capture
 - **setup** — `open_mapping` registration
 
