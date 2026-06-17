@@ -2,7 +2,6 @@ local config = require("clipring.config")
 local yank = require("clipring.yank")
 local persist = require("clipring.persist")
 local ui = require("clipring.ui")
-local which_key = require("clipring.which_key")
 
 local M = {}
 
@@ -52,7 +51,6 @@ end
 
 function M.setup(opts)
   config.setup(opts)
-  which_key.setup()
   yank.setup()
   persist.setup()
   apply_open_mapping(config.get().open_mapping)
